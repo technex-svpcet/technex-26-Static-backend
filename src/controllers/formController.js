@@ -57,16 +57,20 @@ const EVENTS = {
     tab: "Robo Sumo",
     min: 1,
     max: 4,
-    fee: null,
+    fee: 500,
     feeType: "perTeam",
   },
 
   bizcon: {
     tab: "BizCon",
-    min: 1,
+    min: 2,
     max: 4,
-    fee: null,
-    feeType: "perTeam",
+    fees: Object.freeze({
+      2: 299,
+      3: 349,
+      4: 399,
+    }),
+    feeType: "tiered",
   },
 };
 
@@ -111,23 +115,50 @@ const ALLOWED_IMAGE_TYPES = {
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 // ==========================================
-// CALCULATE REGISTRATION FEE
+// SERVER-SIDE REGISTRATION FEE CALCULATION
 // ==========================================
 
 function calculateFee(cfg, size) {
   if (
-    typeof cfg.fee !== "number" ||
-    !Number.isFinite(cfg.fee) ||
-    cfg.fee < 0
+    !Number.isInteger(size) ||
+    size < cfg.min ||
+    size > cfg.max
   ) {
     return null;
   }
 
-  if (cfg.feeType === "perParticipant") {
-    return cfg.fee * size;
+  let amount;
+
+  // BizCon tier-based pricing.
+
+  if (cfg.feeType === "tiered") {
+    amount = cfg.fees?.[size];
   }
 
-  return cfg.fee;
+  // Per participant or fixed team pricing.
+
+  else if (
+    cfg.feeType === "perParticipant" ||
+    cfg.feeType === "perTeam"
+  ) {
+    if (
+      !Number.isSafeInteger(cfg.fee) ||
+      cfg.fee < 0
+    ) {
+      return null;
+    }
+
+    amount =
+      cfg.feeType === "perParticipant"
+        ? cfg.fee * size
+        : cfg.fee;
+  } else {
+    return null;
+  }
+
+  return Number.isSafeInteger(amount) && amount >= 0
+    ? amount
+    : null;
 }
 
 // ==========================================
@@ -135,7 +166,9 @@ function calculateFee(cfg, size) {
 // ==========================================
 
 function validImage(buffer, mimeType) {
-  if (!Buffer.isBuffer(buffer)) return false;
+  if (!Buffer.isBuffer(buffer)) {
+    return false;
+  }
 
   if (mimeType === "image/jpeg") {
     return (
@@ -175,7 +208,9 @@ function validImage(buffer, mimeType) {
 async function assertUploadFolder(drive, folder) {
   const response = await drive.files.get({
     fileId: folder,
+
     fields: "id,mimeType,capabilities(canAddChildren)",
+
     supportsAllDrives: true,
   });
 
@@ -198,12 +233,15 @@ async function assertUploadFolder(drive, folder) {
 async function ensureTab(sheets, spreadsheetId, tab) {
   const metadata = await sheets.spreadsheets.get({
     spreadsheetId,
+
     fields: "sheets.properties.title",
   });
 
   const tabExists = metadata.data.sheets?.some(
     (sheet) => sheet.properties.title === tab
   );
+
+  // Create event sheet if it does not exist.
 
   if (!tabExists) {
     await sheets.spreadsheets.batchUpdate({
@@ -225,6 +263,7 @@ async function ensureTab(sheets, spreadsheetId, tab) {
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
+
     range: `'${tab}'!A1:P1`,
   });
 
@@ -317,20 +356,6 @@ async function register(req, res, next) {
       });
     }
 
-    // Registration remains closed until
-    // the official fee has been configured.
-
-    if (
-      typeof cfg.fee !== "number" ||
-      !Number.isFinite(cfg.fee) ||
-      cfg.fee < 0
-    ) {
-      return res.status(503).json({
-        message:
-          "Registration is not open yet for this event.",
-      });
-    }
-
     const body = req.body || {};
 
     const size = Number(body.teamSize);
@@ -349,8 +374,7 @@ async function register(req, res, next) {
       size > cfg.max
     ) {
       return res.status(400).json({
-        message:
-          `Team size must be ${cfg.min}-${cfg.max}`,
+        message: `Team size must be ${cfg.min}-${cfg.max}`,
       });
     }
 
@@ -363,6 +387,9 @@ async function register(req, res, next) {
     // ======================================
     // SERVER-SIDE FEE CALCULATION
     // ======================================
+
+    // Do not trust any amount submitted
+    // from the browser.
 
     const totalAmount = calculateFee(cfg, size);
 
@@ -477,8 +504,7 @@ async function register(req, res, next) {
         !course
       ) {
         return res.status(400).json({
-          message:
-            `Check all details for member ${i}`,
+          message: `Check all details for member ${i}`,
         });
       }
 
@@ -543,6 +569,7 @@ async function register(req, res, next) {
       const previous =
         await sheets.spreadsheets.values.get({
           spreadsheetId,
+
           range: `'${cfg.tab}'!A2:O`,
         });
 
@@ -671,20 +698,34 @@ async function register(req, res, next) {
 
       const values = members.map((member, i) => [
         timestamp,            // A - Timestamp
+
         cfg.tab,              // B - Event
-        registrationId,       // C - Registration ID
-        size,                 // D - Team Size
-        i + 1,                // E - Participant Count
-        totalAmount,          // F - Total Amount
-        safe(team),           // G - Team Name
-        safe(member.name),    // H - Name
-        safe(member.email),   // I - Emails
-        safe(member.phone),   // J - Phone no
+
+        registrationId,      // C - Registration ID
+
+        size,                // D - Team Size
+
+        i + 1,               // E - Participant Count
+
+        totalAmount,         // F - Total Amount
+
+        safe(team),          // G - Team Name
+
+        safe(member.name),   // H - Name
+
+        safe(member.email),  // I - Emails
+
+        safe(member.phone),  // J - Phone no
+
         safe(member.college), // K - College
-        safe(member.branch),  // L - Branch
-        safe(member.year),    // M - YEAR
-        safe(txn),            // N - UTR-TRN no
-        screenshotLink,       // O - Screenshot link
+
+        safe(member.branch), // L - Branch
+
+        safe(member.year),   // M - YEAR
+
+        safe(txn),           // N - UTR-TRN no
+
+        screenshotLink,      // O - Screenshot link
       ]);
 
       // ====================================
@@ -713,6 +754,7 @@ async function register(req, res, next) {
 
         // Preserve uploaded evidence for
         // authorized organizer review.
+
         throw error;
       }
 

@@ -39,7 +39,7 @@
       Registration fee
       <br/>
       <strong>
-       TBA
+       ₹500 per team / solo participant
       </strong>
      </span>
     </div>
@@ -181,7 +181,7 @@
   </main>
   <script>
    'use strict';
-const config = Object.freeze({"slug": "robosumo", "min": 1, "max": 4, "fee": null, "feeType": "perTeam"});
+const config = Object.freeze({"slug": "robosumo", "min": 1, "max": 4, "fee": 500, "feeType": "perTeam"});
 const form = document.querySelector('#form');
 const size = document.querySelector('#size');
 const members = document.querySelector('#members');
@@ -225,7 +225,7 @@ document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click'
   show(step + 1);
 }));
 document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { if (!done && !busy) show(step - 1); }));
-document.querySelector('#feeNotice').textContent = "Registration fee not announced.";
+document.querySelector('#feeNotice').textContent = "Fixed registration fee: ₹500 per team or solo participant.";
 const payment = document.querySelector('#paymentFields');
 const qr = document.querySelector('#paymentQR');
 const paymentStatus = document.querySelector('#paymentStatus');

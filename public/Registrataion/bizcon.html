@@ -32,14 +32,14 @@
       Team size
       <br/>
       <strong>
-       1–4 members
+       2–4 members
       </strong>
      </span>
      <span>
       Registration fee
       <br/>
       <strong>
-       TBA
+       ₹299–₹399 per team
       </strong>
      </span>
     </div>
@@ -181,7 +181,11 @@
   </main>
   <script>
    'use strict';
-const config = Object.freeze({"slug": "bizcon", "min": 1, "max": 4, "fee": null, "feeType": "perTeam"});
+const config = Object.freeze({slug: "bizcon", min: 2, max: 4, fees: Object.freeze({2: 299, 3: 349, 4: 399})});
+function selectedFee() {
+  const count = Number(size.value);
+  return Number.isInteger(count) && count >= config.min && count <= config.max ? config.fees[count] : null;
+}
 const form = document.querySelector('#form');
 const size = document.querySelector('#size');
 const members = document.querySelector('#members');
@@ -198,7 +202,8 @@ function report(text, error = false) {
 function updateAmount() {
   const count = Number(size.value);
   const valid = Number.isInteger(count) && count >= config.min && count <= config.max;
-  const amount = config.fee === null ? 'TBA' : !valid ? '—' : '₹' + (config.feeType === 'perParticipant' ? count * config.fee : config.fee);
+  const fee = selectedFee();
+  const amount = fee === null ? '—' : '₹' + fee;
   document.querySelectorAll('[data-amount]').forEach(el => el.textContent = amount);
 }
 function show(n) {
@@ -225,15 +230,15 @@ document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click'
   show(step + 1);
 }));
 document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { if (!done && !busy) show(step - 1); }));
-document.querySelector('#feeNotice').textContent = "Registration fee not announced.";
+document.querySelector('#feeNotice').textContent = "Team fees: 2 members ₹299; 3 members ₹349; 4 members ₹399. The server determines the final expected fee.";
 const payment = document.querySelector('#paymentFields');
 const qr = document.querySelector('#paymentQR');
 const paymentStatus = document.querySelector('#paymentStatus');
 function loadPayment() {
   submit.disabled = true;
   qrReady = false;
-  if (config.fee === null) {
-    paymentStatus.textContent = 'Registration fee has not been announced.';
+  if (selectedFee() === null) {
+    paymentStatus.textContent = 'Select a valid team size.';
     return;
   }
   payment.hidden = false;
@@ -254,7 +259,7 @@ function loadPayment() {
 }
 form.addEventListener('submit', async e => {
   e.preventDefault();
-  if (done || busy || step !== 3 || !qrReady || config.fee === null) return;
+  if (done || busy || step !== 3 || !qrReady || selectedFee() === null) return;
   for (let n = 0; n < 3; n++) {
     if (!validate(n)) { show(n); validate(n); return; }
   }
