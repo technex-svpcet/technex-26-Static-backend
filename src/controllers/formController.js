@@ -1,3 +1,4 @@
+
 const { randomUUID } = require("crypto");
 const { Readable } = require("stream");
 const { getClients } = require("../config/main.config");
@@ -86,6 +87,7 @@ const clean = (value, max = 120) =>
 const safe = (value) => {
   if (typeof value !== "string") return value;
 
+  // Prevent spreadsheet formula injection.
   return /^[=+@\-\t\r\n]/.test(value)
     ? "'" + value
     : value;
@@ -100,11 +102,14 @@ const normalize = (value) =>
 const validEmail = (value) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
+// Standard 10-digit Indian mobile number.
+// Starting digits 6, 7, 8, or 9 are permitted.
 const validPhone = (value) =>
+  typeof value === "string" &&
   /^[6-9][0-9]{9}$/.test(value);
 
 const validTransaction = (value) =>
-  /^[a-zA-Z0-9_\/-]{6,100}$/.test(value);
+  /^[a-zA-Z0-9_/-]{6,100}$/.test(value);
 
 const ALLOWED_IMAGE_TYPES = {
   "image/jpeg": "jpg",
@@ -115,7 +120,7 @@ const ALLOWED_IMAGE_TYPES = {
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 // ==========================================
-// SERVER-SIDE REGISTRATION FEE CALCULATION
+// SERVER-SIDE FEE CALCULATION
 // ==========================================
 
 function calculateFee(cfg, size) {
@@ -129,15 +134,9 @@ function calculateFee(cfg, size) {
 
   let amount;
 
-  // BizCon tier-based pricing.
-
   if (cfg.feeType === "tiered") {
     amount = cfg.fees?.[size];
-  }
-
-  // Per participant or fixed team pricing.
-
-  else if (
+  } else if (
     cfg.feeType === "perParticipant" ||
     cfg.feeType === "perTeam"
   ) {
@@ -208,9 +207,7 @@ function validImage(buffer, mimeType) {
 async function assertUploadFolder(drive, folder) {
   const response = await drive.files.get({
     fileId: folder,
-
     fields: "id,mimeType,capabilities(canAddChildren)",
-
     supportsAllDrives: true,
   });
 
@@ -227,13 +224,12 @@ async function assertUploadFolder(drive, folder) {
 }
 
 // ==========================================
-// CREATE GOOGLE SHEETS TAB
+// CREATE OR VALIDATE GOOGLE SHEETS TAB
 // ==========================================
 
 async function ensureTab(sheets, spreadsheetId, tab) {
   const metadata = await sheets.spreadsheets.get({
     spreadsheetId,
-
     fields: "sheets.properties.title",
   });
 
@@ -241,12 +237,9 @@ async function ensureTab(sheets, spreadsheetId, tab) {
     (sheet) => sheet.properties.title === tab
   );
 
-  // Create event sheet if it does not exist.
-
   if (!tabExists) {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
-
       requestBody: {
         requests: [
           {
@@ -263,23 +256,16 @@ async function ensureTab(sheets, spreadsheetId, tab) {
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-
     range: `'${tab}'!A1:P1`,
   });
 
-  const existingHeaders =
-    response.data.values?.[0] || [];
-
-  // Create headers if the sheet is empty.
+  const existingHeaders = response.data.values?.[0] || [];
 
   if (!existingHeaders.length) {
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-
       range: `'${tab}'!A1:O1`,
-
       valueInputOption: "RAW",
-
       requestBody: {
         values: [HEADERS],
       },
@@ -287,8 +273,6 @@ async function ensureTab(sheets, spreadsheetId, tab) {
 
     return;
   }
-
-  // Protect existing spreadsheet data.
 
   const headersMatch =
     existingHeaders.length === HEADERS.length &&
@@ -307,8 +291,7 @@ async function ensureTab(sheets, spreadsheetId, tab) {
 
 // ==========================================
 // REGISTRATION LOCK
-// Prevent simultaneous duplicate submissions
-// within a single Node.js process.
+// Protects concurrent requests in one process.
 // ==========================================
 
 let registrationQueue = Promise.resolve();
@@ -332,6 +315,61 @@ async function withRegistrationLock(callback) {
 }
 
 // ==========================================
+// GLOBAL TRANSACTION DUPLICATE CHECK
+// Checks all existing event sheets.
+// ==========================================
+
+async function isTransactionAlreadyUsed(
+  sheets,
+  spreadsheetId,
+  transactionId
+) {
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: "sheets.properties.title",
+  });
+
+  const existingTabs = new Set(
+    (metadata.data.sheets || []).map(
+      (sheet) => sheet.properties.title
+    )
+  );
+
+  const eventTabs = [
+    ...new Set(
+      Object.values(EVENTS).map((cfg) => cfg.tab)
+    ),
+  ];
+
+  const normalizedTransaction = normalize(transactionId);
+
+  for (const tab of eventTabs) {
+    // New event tabs may not exist yet.
+    if (!existingTabs.has(tab)) {
+      continue;
+    }
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${tab}'!N2:N`,
+    });
+
+    const transactions = response.data.values || [];
+
+    const duplicate = transactions.some(
+      (row) =>
+        normalize(row[0]) === normalizedTransaction
+    );
+
+    if (duplicate) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// ==========================================
 // MAIN REGISTRATION CONTROLLER
 // ==========================================
 
@@ -352,6 +390,7 @@ async function register(req, res, next) {
 
     if (!cfg) {
       return res.status(404).json({
+        success: false,
         message: "Event registration is not enabled",
       });
     }
@@ -359,9 +398,7 @@ async function register(req, res, next) {
     const body = req.body || {};
 
     const size = Number(body.teamSize);
-
     const team = clean(body.teamName, 100);
-
     const txn = clean(body.transactionid, 100);
 
     // ======================================
@@ -374,12 +411,14 @@ async function register(req, res, next) {
       size > cfg.max
     ) {
       return res.status(400).json({
+        success: false,
         message: `Team size must be ${cfg.min}-${cfg.max}`,
       });
     }
 
     if (team.length < 2) {
       return res.status(400).json({
+        success: false,
         message: "Enter a valid team name",
       });
     }
@@ -388,24 +427,24 @@ async function register(req, res, next) {
     // SERVER-SIDE FEE CALCULATION
     // ======================================
 
-    // Do not trust any amount submitted
-    // from the browser.
-
+    // Never trust an amount submitted by the browser.
     const totalAmount = calculateFee(cfg, size);
 
     if (totalAmount === null) {
       return res.status(503).json({
+        success: false,
         message:
           "Registration fee has not been configured.",
       });
     }
 
     // ======================================
-    // TRANSACTION REFERENCE VALIDATION
+    // TRANSACTION ID VALIDATION
     // ======================================
 
     if (!validTransaction(txn)) {
       return res.status(400).json({
+        success: false,
         message:
           "Enter a valid UTR or transaction reference",
       });
@@ -417,6 +456,7 @@ async function register(req, res, next) {
 
     if (!req.file) {
       return res.status(400).json({
+        success: false,
         message: "Upload your payment screenshot",
       });
     }
@@ -426,6 +466,7 @@ async function register(req, res, next) {
 
     if (!extension) {
       return res.status(400).json({
+        success: false,
         message:
           "Only JPEG, PNG and WEBP screenshots are allowed",
       });
@@ -437,6 +478,7 @@ async function register(req, res, next) {
       req.file.buffer.length > MAX_FILE_SIZE
     ) {
       return res.status(400).json({
+        success: false,
         message:
           "Screenshot must be a valid image under 5 MB",
       });
@@ -449,6 +491,7 @@ async function register(req, res, next) {
       )
     ) {
       return res.status(400).json({
+        success: false,
         message: "Invalid screenshot image",
       });
     }
@@ -458,7 +501,6 @@ async function register(req, res, next) {
     // ======================================
 
     const members = [];
-
     const seenEmails = new Set();
 
     for (let i = 1; i <= size; i++) {
@@ -469,9 +511,7 @@ async function register(req, res, next) {
       ).toLowerCase();
 
       const phone = clean(body[`phone${i}`]);
-
       const year = clean(body[`year${i}`]);
-
       const branch = clean(body[`branch${i}`]);
 
       const selectedCollege = clean(
@@ -492,26 +532,41 @@ async function register(req, res, next) {
           ? clean(body[`customCourse${i}`])
           : selectedCourse;
 
-      // Validate participant details.
+      // ====================================
+      // INDIAN MOBILE NUMBER VALIDATION
+      // ====================================
+
+      if (!validPhone(phone)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            `Member ${i}: enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.`,
+        });
+      }
+
+      // ====================================
+      // OTHER PARTICIPANT VALIDATION
+      // ====================================
 
       if (
         name.length < 2 ||
         !validEmail(email) ||
-        !validPhone(phone) ||
         !["I", "II", "III", "IV"].includes(year) ||
         !branch ||
         !college ||
         !course
       ) {
         return res.status(400).json({
+          success: false,
           message: `Check all details for member ${i}`,
         });
       }
 
-      // Prevent repeated emails in one team.
+      // Prevent repeated emails within a team.
 
       if (seenEmails.has(email)) {
         return res.status(400).json({
+          success: false,
           message:
             "Team members must have different email addresses",
         });
@@ -541,18 +596,14 @@ async function register(req, res, next) {
     } = getClients();
 
     if (!spreadsheetId) {
-      throw new Error(
-        "Missing GOOGLE_SPREADSHEET_ID"
-      );
+      throw new Error("Missing GOOGLE_SPREADSHEET_ID");
     }
 
     const folder =
       process.env.GOOGLE_DRIVE_FOLDER_ID?.trim();
 
     if (!folder) {
-      throw new Error(
-        "Missing GOOGLE_DRIVE_FOLDER_ID"
-      );
+      throw new Error("Missing GOOGLE_DRIVE_FOLDER_ID");
     }
 
     // ======================================
@@ -569,7 +620,6 @@ async function register(req, res, next) {
       const previous =
         await sheets.spreadsheets.values.get({
           spreadsheetId,
-
           range: `'${cfg.tab}'!A2:O`,
         });
 
@@ -587,25 +637,29 @@ async function register(req, res, next) {
 
       if (duplicateTeam) {
         return res.status(409).json({
+          success: false,
           message:
             "This team name is already registered",
         });
       }
 
       // ====================================
-      // DUPLICATE TRANSACTION CHECK
-      // Column N = index 13
+      // GLOBAL DUPLICATE TRANSACTION CHECK
+      // Checks all five TECHNEX events.
       // ====================================
 
-      const duplicateTransaction = rows.some(
-        (row) =>
-          normalize(row[13]) === normalize(txn)
-      );
+      const duplicateTransaction =
+        await isTransactionAlreadyUsed(
+          sheets,
+          spreadsheetId,
+          txn
+        );
 
       if (duplicateTransaction) {
         return res.status(409).json({
+          success: false,
           message:
-            "This transaction reference has already been submitted",
+            "This transaction ID has already been submitted for a TECHNEX event.",
         });
       }
 
@@ -629,6 +683,7 @@ async function register(req, res, next) {
 
         if (duplicateParticipant) {
           return res.status(409).json({
+            success: false,
             message:
               "A participant is already registered with another BizCon team.",
           });
@@ -646,7 +701,6 @@ async function register(req, res, next) {
       // ====================================
 
       const registrationId = randomUUID();
-
       const timestamp = new Date().toISOString();
 
       // ====================================
@@ -660,23 +714,18 @@ async function register(req, res, next) {
           requestBody: {
             name:
               `${event}-${registrationId}.${extension}`,
-
             parents: [folder],
           },
 
           media: {
             mimeType: req.file.mimetype,
-
-            body: Readable.from(
-              req.file.buffer
-            ),
+            body: Readable.from(req.file.buffer),
           },
 
           fields: "id,webViewLink",
         });
 
-      const screenshotId =
-        driveResponse.data.id;
+      const screenshotId = driveResponse.data.id;
 
       if (!screenshotId) {
         throw new Error(
@@ -697,35 +746,21 @@ async function register(req, res, next) {
       // ====================================
 
       const values = members.map((member, i) => [
-        timestamp,            // A - Timestamp
-
-        cfg.tab,              // B - Event
-
-        registrationId,      // C - Registration ID
-
-        size,                // D - Team Size
-
-        i + 1,               // E - Participant Count
-
-        totalAmount,         // F - Total Amount
-
-        safe(team),          // G - Team Name
-
-        safe(member.name),   // H - Name
-
-        safe(member.email),  // I - Emails
-
-        safe(member.phone),  // J - Phone no
-
-        safe(member.college), // K - College
-
-        safe(member.branch), // L - Branch
-
-        safe(member.year),   // M - YEAR
-
-        safe(txn),           // N - UTR-TRN no
-
-        screenshotLink,      // O - Screenshot link
+        timestamp,             // A - Timestamp
+        cfg.tab,               // B - Event
+        registrationId,        // C - Registration ID
+        size,                  // D - Team Size
+        i + 1,                 // E - Participant Count
+        totalAmount,           // F - Total Amount
+        safe(team),            // G - Team Name
+        safe(member.name),     // H - Name
+        safe(member.email),    // I - Emails
+        safe(member.phone),    // J - Phone no
+        safe(member.college),  // K - College
+        safe(member.branch),   // L - Branch
+        safe(member.year),     // M - YEAR
+        safe(txn),             // N - UTR-TRN no
+        screenshotLink,        // O - Screenshot link
       ]);
 
       // ====================================
@@ -735,13 +770,9 @@ async function register(req, res, next) {
       try {
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-
           range: `'${cfg.tab}'!A:O`,
-
           valueInputOption: "RAW",
-
           insertDataOption: "INSERT_ROWS",
-
           requestBody: {
             values,
           },
@@ -754,7 +785,6 @@ async function register(req, res, next) {
 
         // Preserve uploaded evidence for
         // authorized organizer review.
-
         throw error;
       }
 
@@ -764,23 +794,14 @@ async function register(req, res, next) {
 
       return res.status(201).json({
         success: true,
-
         registrationId,
-
         event: cfg.tab,
-
         teamName: team,
-
         teamSize: size,
-
         participantCount: members.length,
-
         feeType: cfg.feeType,
-
         totalAmount,
-
         paymentStatus: "Pending Verification",
-
         message:
           "Registration and payment screenshot submitted successfully.",
       });
