@@ -13,8 +13,6 @@ const app = express();
 // RAILWAY PROXY CONFIGURATION
 // ==========================================
 
-// Assumes one trusted reverse proxy.
-// Verify this against your deployment topology.
 if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
@@ -61,6 +59,26 @@ const ENABLED_EVENTS = new Set([
   "robosumo",
   "bizcon",
 ]);
+
+// ==========================================
+// EVENT SLUG ALIASES
+// ==========================================
+
+const EVENT_ALIASES = new Map([
+  ["tech-quest", "techquest"],
+  ["overdrive-9", "overdrive"],
+  ["overdrive-9-0", "overdrive"],
+  ["coastal-clash", "coastalclash"],
+  ["robo-sumo", "robosumo"],
+  ["biz-con", "bizcon"],
+]);
+
+// ==========================================
+// EXTERNAL REGISTRATION URL
+// ==========================================
+
+const EXTERNAL_REGISTRATION_URL =
+  "https://unstop.com/";
 
 // ==========================================
 // REGISTRATION RATE LIMITING
@@ -115,23 +133,31 @@ app.get("/", (req, res) => {
 // ==========================================
 
 app.get("/register/:event", (req, res) => {
-  const event = req.params.event;
+  const slug = req.params.event
+    .toLowerCase()
+    .trim();
 
-  if (!ENABLED_EVENTS.has(event)) {
-    return res.status(404).json({
-      message:
-        "Registration is not available for this event.",
-    });
-  }
+  const event = EVENT_ALIASES.get(slug) || slug;
 
   res.setHeader("Cache-Control", "no-store");
 
-  return res.sendFile(
-    path.join(
-      pub,
-      "Registrataion",
-      `${event}.html`
-    )
+  // Existing backend registration forms.
+
+  if (ENABLED_EVENTS.has(event)) {
+    return res.sendFile(
+      path.join(
+        pub,
+        "Registrataion",
+        `${event}.html`
+      )
+    );
+  }
+
+  // All remaining events redirect to Unstop.
+
+  return res.redirect(
+    302,
+    EXTERNAL_REGISTRATION_URL
   );
 });
 
@@ -202,17 +228,18 @@ app.use(
     }
 
     // Prevent direct access to HTML files.
+
     if (/\.html?\/?$/i.test(decodedPath)) {
       return res.status(404).json({
         message: "Page not found.",
       });
     }
 
-    // Prevent access through registration
-    // and landing-page directories.
     const normalizedPath = path.posix.normalize(
       decodedPath.replace(/\\/g, "/")
     );
+
+    // Prevent direct access to registration directory.
 
     if (
       /^\/Registrataion(?:\/|$)/i.test(normalizedPath)
@@ -284,7 +311,9 @@ if (require.main === module) {
     console.log("====================================");
 
     console.log(
-      `Environment: ${process.env.NODE_ENV || "development"}`
+      `Environment: ${
+        process.env.NODE_ENV || "development"
+      }`
     );
 
     console.log(`Port: ${port}`);
@@ -302,6 +331,11 @@ if (require.main === module) {
 
     console.log("------------------------------------");
 
+    console.log(
+      "Other events redirect to:",
+      EXTERNAL_REGISTRATION_URL
+    );
+
     console.log("Health Check: /health");
     console.log("Payment QR: /api/payment-qr");
 
@@ -312,14 +346,20 @@ if (require.main === module) {
   // Handle server startup errors.
 
   server.on("error", (error) => {
-    console.error("Server startup failed:", error.message);
+    console.error(
+      "Server startup failed:",
+      error.message
+    );
+
     process.exit(1);
   });
 
   // Graceful shutdown for Railway deployments.
 
   function shutdown(signal) {
-    console.log(`${signal} received. Shutting down...`);
+    console.log(
+      `${signal} received. Shutting down...`
+    );
 
     const timeout = setTimeout(() => {
       console.error("Shutdown timed out.");
