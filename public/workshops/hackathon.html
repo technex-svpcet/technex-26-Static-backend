@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hackathon Workshop Registration</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap");
+
+    :root {
+      --accent: #00b7ff;
+      --dark-bg: #050505;
+      --input-bg: #0d0d0d;
+      --text: #ffffff;
+      --text-secondary: #b6b6b6;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--dark-bg);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+    }
+
+    .page-wrap {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      padding: 30px;
+    }
+
+    .container-card {
+      width: 100%;
+      max-width: 650px;
+      background: #0a0a0a;
+      padding: 32px 28px;
+      border-radius: 10px;
+      border: 2px solid var(--accent);
+      box-shadow: 0 0 25px rgba(0, 183, 255, 0.3);
+    }
+
+    h1 {
+      color: var(--accent);
+      text-align: center;
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 2px solid rgba(255,255,255,0.15);
+      background: var(--input-bg);
+      color: var(--text);
+      margin-bottom: 13px;
+    }
+
+    input.invalid {
+      border-color: red !important;
+    }
+
+    .member {
+      padding: 16px;
+      background: #0f0f0f;
+      border-radius: 8px;
+      border: 2px solid rgba(255,255,255,0.1);
+      margin-bottom: 18px;
+    }
+
+    .button {
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      background: var(--accent);
+      color: black;
+      font-weight: 700;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      margin-left: 6px;
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      border-top: 2px solid rgba(0, 0, 0, 0.7);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0); }
+      to { transform: rotate(360deg); }
+    }
+
+    .popup {
+      position: fixed;
+      bottom: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 18px;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 15px;
+      transition: bottom 0.5s ease-in-out;
+      z-index: 50;
+      background: rgba(255, 0, 0, 0.9);
+    }
+
+    .popup.show {
+      bottom: 22px;
+    }
+
+    /* Overlay */
+    .registration-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.3s ease-in;
+      pointer-events: none;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    .overlay-container {
+      text-align: center;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(0, 183, 255, 0.08) 100%);
+      padding: 50px 40px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 183, 255, 0.2), inset 0 0 30px rgba(0, 183, 255, 0.05);
+      width: 90%;
+      max-width: 550px;
+      border: 2px solid var(--accent);
+      animation: slideUp 0.4s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(30px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .overlay-container img {
+      width: 90px;
+      height: 90px;
+      margin-bottom: 25px;
+      filter: drop-shadow(0 0 15px rgba(0, 183, 255, 0.5));
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        filter: drop-shadow(0 0 15px rgba(0, 183, 255, 0.5));
+      }
+      50% {
+        filter: drop-shadow(0 0 25px rgba(0, 183, 255, 0.8));
+      }
+    }
+
+    .overlay-container h1 {
+      margin: 0 0 15px;
+      font-size: 2.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--accent);
+      text-shadow: 0 0 20px rgba(0, 183, 255, 0.7);
+    }
+
+    .overlay-container h2 {
+      margin: 0;
+      font-size: 2rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: white;
+      font-family: 'Rajdhani', sans-serif;
+    }
+
+    /* Mobile */
+    @media (max-width: 480px) {
+      .overlay-container {
+        padding: 40px 25px;
+        width: 95%;
+      }
+      
+      .overlay-container img {
+        width: 70px;
+        height: 70px;
+        margin-bottom: 20px;
+      }
+      
+      .overlay-container h1 {
+        font-size: 2.2rem;
+        letter-spacing: 2px;
+      }
+      
+      .overlay-container h2 {
+        font-size: 1.6rem;
+        letter-spacing: 1px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- Registration Closed Overlay -->
+<div class="registration-overlay" id="registrationOverlay">
+  <div class="overlay-container">
+    <img src="https://raw.githubusercontent.com/Vedant11054/bg-img/main/logo.webp" alt="TECHNEX Logo">
+    <h1>Registration Closed</h1>
+    <h2>Technex 25-26</h2>
+  </div>
+</div>
+
+<div id="popup" class="popup">
+  <p id="popupMessage" style="margin:0;"></p>
+</div>
+
+<div class="page-wrap">
+  <div class="container-card">
+
+    <h1>Hackathon Workshop</h1>
+
+    <form id="registrationForm" action="/submit-workshop" method="POST">
+
+      <label>Workshop Name</label>
+      <input type="text" name="workshopname" value="hackathon" readonly />
+
+      <label>Team Name</label>
+      <input type="text" name="teamName" id="teamName" required />
+
+      <label>Team Size</label>
+      <select id="teamSize" name="teamSize" onchange="updateFields()" required>
+        <option hidden value="">Select Team Size</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
+
+      <div id="teamMembers"></div>
+
+      <input type="hidden" name="amount" value="Free" />
+
+      <button class="button" type="submit" id="payButton">
+        <span id="buttonText">Register</span>
+        <span id="loadingSpinner" class="spinner"></span>
+      </button>
+
+    </form>
+
+  </div>
+</div>
+
+<script>
+function updateFields() {
+  const size = Number(document.getElementById("teamSize").value || 0);
+  const box = document.getElementById("teamMembers");
+  box.innerHTML = "";
+
+  for (let i = 1; i <= size; i++) {
+    box.innerHTML += `
+      <div class="member">
+        <h3>Member ${i}</h3>
+        <input type="text" name="name${i}" placeholder="Full Name" required>
+        <input type="email" name="email${i}" placeholder="Email" required>
+        <input type="tel" name="phone${i}" placeholder="Phone Number" required>
+        <input type="text" name="year${i}" placeholder="Year (1-4)" required>
+        <input type="text" name="branch${i}" placeholder="Branch" required>
+        <input type="text" name="college${i}" placeholder="College Name" required>
+      </div>`;
+  }
+}
+
+function showPopup(msg) {
+  const popup = document.getElementById("popup");
+  const msgBox = document.getElementById("popupMessage");
+  msgBox.textContent = msg;
+  popup.classList.add("show");
+  setTimeout(() => popup.classList.remove("show"), 3000);
+}
+
+// VALIDATION RULES
+function validateForm() {
+  let valid = true;
+
+  const teamName = document.getElementById("teamName");
+  if (teamName.value.trim().length < 3) {
+    teamName.classList.add("invalid");
+    showPopup("Team name must be at least 3 characters");
+    return false;
+  } else teamName.classList.remove("invalid");
+
+  const members = document.querySelectorAll(".member");
+  for (let m of members) {
+    const inputs = m.querySelectorAll("input");
+
+    for (let input of inputs) {
+      input.classList.remove("invalid");
+
+      if (input.name.includes("name")) {
+        if (!/^[A-Za-z ]{3,}$/.test(input.value)) {
+          input.classList.add("invalid");
+          showPopup("Enter a valid name (only letters, min 3 chars)");
+          return false;
+        }
+      }
+
+      if (input.name.includes("email")) {
+        if (!/^\S+@\S+\.\S+$/.test(input.value)) {
+          input.classList.add("invalid");
+          showPopup("Enter a valid email");
+          return false;
+        }
+      }
+
+      if (input.name.includes("phone")) {
+        if (!/^[0-9]{10}$/.test(input.value)) {
+          input.classList.add("invalid");
+          showPopup("Phone must be 10 digits");
+          return false;
+        }
+      }
+
+      if (input.name.includes("year")) {
+        if (!/^[1-4]$/.test(input.value)) {
+          input.classList.add("invalid");
+          showPopup("Year must be 1–4");
+          return false;
+        }
+      }
+
+      if (input.name.includes("branch")) {
+        if (input.value.trim().length < 2) {
+          input.classList.add("invalid");
+          showPopup("Enter a valid branch");
+          return false;
+        }
+      }
+
+      if (input.name.includes("college")) {
+        if (input.value.trim().length < 3) {
+          input.classList.add("invalid");
+          showPopup("Enter a valid college name");
+          return false;
+        }
+      }
+    }
+  }
+
+  return valid;
+}
+
+// SUBMIT HANDLER
+document.getElementById("registrationForm").addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  if (!validateForm()) return;
+
+  const btnText = document.getElementById("buttonText");
+  const spin = document.getElementById("loadingSpinner");
+  btnText.style.display = "none";
+  spin.style.display = "inline-block";
+  this.querySelector("button").disabled = true;
+
+  try {
+    const res = await fetch(this.action, {
+      method: "POST",
+      body: new FormData(this),
+    });
+
+    if (res.ok) {
+      window.location.href = "/workshop-success?workshop=hackathon";
+    } else {
+      showPopup("Registration failed. Try again.");
+    }
+  } catch (err) {
+    showPopup("Network error. Try again.");
+  }
+
+  btnText.style.display = "inline";
+  spin.style.display = "none";
+  this.querySelector("button").disabled = false;
+});
+</script>
+
+</body>
+</html>

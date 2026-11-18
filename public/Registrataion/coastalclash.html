@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <title>
+   COASTAL CLASH 3.0 | TECHNEX
+  </title>
+  <style>
+   *{box-sizing:border-box} [hidden]{display:none!important} body{margin:0;background:radial-gradient(ellipse at 70% 0,#272015 0,transparent 45%),#090807;color:#eee5d2;font:15px/1.6 system-ui,sans-serif;min-height:100vh} main{max-width:1000px;margin:auto;padding:28px 20px 60px} header{border-bottom:1px solid #514122;padding:0 0 22px} .brand,.eyebrow{letter-spacing:3px;color:#e6c574;font-size:12px;font-weight:800} .eyebrow{display:inline-block;background:#e9c878;color:#211706;padding:3px 12px;border-radius:3px;margin-top:28px} h1{font-size:clamp(36px,7vw,76px);line-height:1.05;margin:16px 0;color:#ffe4a0;text-shadow:0 0 25px #b38b4a66;letter-spacing:1px} h2,h3{color:#f4d38a;margin-top:0} .sub{color:#bdb09a} .stats,.steps,.actions{display:flex;gap:12px;flex-wrap:wrap;margin:20px 0}.stats span,.steps span{flex:1;border:1px solid #594725;padding:10px;border-radius:8px;min-width:100px}.steps span.active{background:#e9c878;color:#211706;font-weight:800}.panel,.member{background:linear-gradient(125deg,#1d180f,#100e0b);border:1px solid #594725;border-radius:12px;padding:clamp(16px,3vw,30px);margin:16px 0}.member{padding:18px;background:#110f0c}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}label{display:block;font-weight:600;color:#e5d5b5}input,select{display:block;width:100%;margin-top:6px;background:#0a0908;border:1px solid #655331;border-radius:6px;padding:12px;color:#fff;font:inherit;min-height:46px}input:focus,select:focus,button:focus-visible{outline:2px solid #f4d38a;outline-offset:2px}button{border:1px solid #e9c878;background:linear-gradient(110deg,#fff0bd,#c89844);color:#211706;font:inherit;font-weight:800;padding:12px 24px;border-radius:5px;cursor:pointer}button.secondary{background:transparent;color:#f4d38a}button:disabled{opacity:.5;cursor:not-allowed}.notice{border-left:3px solid #e9c878;padding:10px 14px;background:#292113;color:#f0deb3}.error{color:#ffaaa0}#message{white-space:pre-wrap} a{color:#f4d38a} .check{display:flex;align-items:flex-start;gap:10px}.check input{width:auto;min-height:0;margin-top:6px}.qr{max-width:220px;width:100%;background:white;padding:8px;border-radius:8px} @media(max-width:600px){.grid{grid-template-columns:1fr}.actions button{flex:1}.steps{gap:5px}.steps span{min-width:0;font-size:12px;padding:8px}} @media(prefers-reduced-motion:no-preference){.panel{animation:appear .25s ease-out}@keyframes appear{from{opacity:.5;transform:translateY(5px)}to{opacity:1;transform:none}}}
+
+.fee-card{border:1px solid #806331;border-radius:12px;padding:20px;margin:20px 0;background:#17130c}.fee-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0}.amount{font-size:28px;color:#ffe4a0}.placeholder{width:200px;height:200px;display:grid;place-content:center;border:2px dashed #806331;border-radius:12px;text-align:center;margin:20px auto;color:#e9c878}.review{white-space:pre-wrap;overflow-wrap:anywhere}.steps span{min-width:0}.actions{justify-content:flex-end}
+  </style>
+ </head>
+ <body>
+  <main>
+   <header>
+    <div class="brand">
+     TECHNEX / 2026
+    </div>
+    <span class="eyebrow">
+     Marine
+    </span>
+    <h1>
+     COASTAL CLASH 3.0
+    </h1>
+    <div class="sub">
+     RC boat racing · SVPCET, Nagpur
+    </div>
+    <div class="stats">
+     <span>
+      Team size
+      <br/>
+      <strong>
+       1–4 members
+      </strong>
+     </span>
+     <span>
+      Registration fee
+      <br/>
+      <strong>
+       ₹399 / team
+      </strong>
+     </span>
+    </div>
+   </header>
+   <nav aria-label="Registration progress" class="steps">
+    <span>
+     01 / Team
+    </span>
+    <span>
+     02 / Members
+    </span>
+    <span>
+     03 / Review
+    </span>
+    <span>
+     04 / Payment
+    </span>
+   </nav>
+   <form id="form" method="post" novalidate="">
+    <section class="panel" data-step="0">
+     <h2>
+      Team information
+     </h2>
+     <div class="grid">
+      <label>
+       Team name
+       <input autocomplete="organization" maxlength="100" minlength="2" name="teamName" required=""/>
+      </label>
+      <label>
+       Team size
+       <select id="size" name="teamSize" required="">
+        <option value="">
+         Select team size
+        </option>
+       </select>
+      </label>
+     </div>
+     <div class="fee-card">
+      <div class="fee-row">
+       <span>
+        Expected fee
+       </span>
+       <strong class="amount" data-amount="">
+        —
+       </strong>
+      </div>
+     </div>
+     <div class="actions">
+      <button data-next="" type="button">
+       Continue
+      </button>
+     </div>
+    </section>
+    <section class="panel" data-step="1" hidden="">
+     <h2>
+      Participant details
+     </h2>
+     <div id="members">
+     </div>
+     <div class="actions">
+      <button class="secondary" data-back="" type="button">
+       Back
+      </button>
+      <button data-next="" type="button">
+       Review details
+      </button>
+     </div>
+    </section>
+    <section class="panel" data-step="2" hidden="">
+     <h2>
+      Review Registration
+     </h2>
+     <p id="summary">
+     </p>
+     <div class="review" id="reviewMembers">
+     </div>
+     <div class="fee-card">
+      <div class="fee-row">
+       <span>
+        Expected registration fee
+       </span>
+       <strong class="amount" data-amount="">
+        —
+       </strong>
+      </div>
+     </div>
+     <p class="notice" id="feeNotice">
+     </p>
+     <label class="check">
+      <input id="consent" required="" type="checkbox"/>
+      I confirm the details and event rules.
+     </label>
+     <div class="actions">
+      <button class="secondary" data-back="" type="button">
+       Back
+      </button>
+      <button data-next="" type="button">
+       Continue
+      </button>
+     </div>
+    </section>
+    <section class="panel" data-step="3" hidden="">
+     <h2>
+      Payment Details
+     </h2>
+     <div class="fee-card">
+      <div class="fee-row">
+       <span>
+        Expected fee
+       </span>
+       <strong class="amount" data-amount="">
+        —
+       </strong>
+      </div>
+     </div>
+     <div id="paymentFields" hidden>
+      <div style="text-align:center;margin:24px 0">
+        <img id="paymentQR" alt="Official event payment QR" style="width:220px;max-width:100%;background:white;padding:8px;border-radius:8px" />
+      </div>
+      <div class="grid">
+        <label>UTR / Transaction reference<input name="transactionid" required minlength="6" maxlength="100" disabled /></label>
+        <label>Payment screenshot (maximum 3 MB)<input name="paymentScreenshot" type="file" accept="image/jpeg,image/png,image/webp" required disabled /></label>
+      </div>
+      <p class="notice">Payment evidence is subject to verification by the authorized organizer. Only upload the relevant payment receipt.</p>
+     </div>
+     <p class="notice" id="paymentStatus" role="status"></p>
+     <div class="actions">
+      <button class="secondary" data-back="" type="button">
+       Back
+      </button>
+      <button id="submit" type="submit">
+       Submit Registration
+      </button>
+     </div>
+    </section>
+    <p aria-live="polite" id="message" role="status">
+    </p>
+   </form>
+  </main>
+  <script>
+   'use strict';
+const config = Object.freeze({"slug": "coastalclash", "min": 1, "max": 4, "fee": 399, "feeType": "perTeam"});
+const form = document.querySelector('#form');
+const size = document.querySelector('#size');
+const members = document.querySelector('#members');
+const msg = document.querySelector('#message');
+const submit = document.querySelector('#submit');
+let step = 0, done = false, busy = false, qrReady = false;
+for (let n = config.min; n <= config.max; n++) {
+  size.add(new Option(n + ' member(s)', n));
+}
+function report(text, error = false) {
+  msg.textContent = text;
+  msg.className = error ? 'error' : '';
+}
+function updateAmount() {
+  const count = Number(size.value);
+  const valid = Number.isInteger(count) && count >= config.min && count <= config.max;
+  const amount = config.fee === null ? 'TBA' : !valid ? '—' : '₹' + (config.feeType === 'perParticipant' ? count * config.fee : config.fee);
+  document.querySelectorAll('[data-amount]').forEach(el => el.textContent = amount);
+}
+function show(n) {
+  step = n;
+  document.querySelectorAll('[data-step]').forEach((el,i) => el.hidden = i !== n);
+  document.querySelectorAll('.steps span').forEach((el,i) => {
+    el.classList.toggle('active', i === n);
+    if (i === n) el.setAttribute('aria-current','step'); else el.removeAttribute('aria-current');
+  });
+  report('');
+  updateAmount();
+  if (n === 3) loadPayment();
+  if (n === 2) {
+    document.querySelector('#summary').textContent = form.elements.teamName.value.trim() + ' · ' + size.value + ' participant(s)';
+    document.querySelector('#reviewMembers').textContent = Array.from({length:Number(size.value)}, (_,i) => (i+1) + '. ' + form.elements['name'+(i+1)].value.trim()).join('\n');
+  }
+}
+function render(){const count=Number(size.value);if(!Number.isInteger(count)||count<config.min||count>config.max)return;while(members.children.length>count)members.lastElementChild.remove();for(let i=members.children.length+1;i<=count;i++){const card=document.createElement('article');card.className='member';card.innerHTML=`<h3>${i===1?'Team leader / Participant 1':'Participant '+i}</h3><div class="grid"><label>Full name<input name="name${i}" required minlength="2" maxlength="120"></label><label>Email<input name="email${i}" type="email" required maxlength="120"></label><label>Phone<input name="phone${i}" type="tel" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" required></label><label>Year<select name="year${i}" required><option value="">Select year</option>${['I','II','III','IV'].map(x=>`<option>${x}</option>`).join('')}</select></label><label>Branch<input name="branch${i}" required maxlength="120"></label><label>College<select name="college${i}" required><option value="">Select college</option><option>SVPCET, Nagpur</option><option>Other</option></select></label><label hidden>Other college<input name="customCollege${i}" maxlength="120" disabled></label><label>Course<select name="course${i}" required><option value="">Select course</option><option>B.Tech</option><option>B.E.</option><option>BCA</option><option>B.Sc.</option><option>Other</option></select></label><label hidden>Other course<input name="customCourse${i}" maxlength="120" disabled></label></div>`;members.append(card);for(const [a,b] of [['college','customCollege'],['course','customCourse']]){const select=form.elements[a+i],input=form.elements[b+i];select.addEventListener('change',()=>{const on=select.value==='Other';input.parentElement.hidden=!on;input.disabled=!on;input.required=on;});}}}
+function validate(n){const section=document.querySelector(`[data-step="${n}"]`);for(const el of section.querySelectorAll('input,select')){if(el.disabled)continue;if(el.type==='text')el.value=el.value.trim();if(!el.checkValidity()){el.reportValidity();return false;}}if(n===1){const emails=[...members.querySelectorAll('input[type=email]')].map(x=>x.value.trim().toLowerCase());if(new Set(emails).size!==emails.length){report('Each participant must have a different email address.',true);return false;}}return true;}
+size.addEventListener('change', () => { render(); updateAmount(); });
+document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click', () => {
+  if (done || busy || !validate(step)) return;
+  if (step === 0) render();
+  show(step + 1);
+}));
+document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { if (!done && !busy) show(step - 1); }));
+document.querySelector('#feeNotice').textContent = "Review your expected registration fee.";
+const payment = document.querySelector('#paymentFields');
+const qr = document.querySelector('#paymentQR');
+const paymentStatus = document.querySelector('#paymentStatus');
+function loadPayment() {
+  submit.disabled = true;
+  qrReady = false;
+  if (config.fee === null) {
+    paymentStatus.textContent = 'Registration fee has not been announced.';
+    return;
+  }
+  payment.hidden = false;
+  paymentStatus.textContent = 'Loading official payment QR…';
+  qr.onload = () => {
+    qrReady = true;
+    paymentStatus.textContent = 'Payment evidence will be verified by the organizer.';
+    payment.querySelectorAll('input').forEach(x => x.disabled = false);
+    submit.disabled = busy || done;
+  };
+  qr.onerror = () => {
+    qrReady = false;
+    submit.disabled = true;
+    paymentStatus.textContent = 'Official payment QR unavailable. Contact the organizer.';
+  };
+  qr.src = '/api/payment-qr';
+  if (qr.complete && qr.naturalWidth > 0) qr.onload();
+}
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (done || busy || step !== 3 || !qrReady || config.fee === null) return;
+  for (let n = 0; n < 3; n++) {
+    if (!validate(n)) { show(n); validate(n); return; }
+  }
+  if (!validate(3)) return;
+  const txn = form.elements.transactionid.value.trim();
+  const file = form.elements.paymentScreenshot.files[0];
+  if (!/^[a-zA-Z0-9_/-]{6,100}$/.test(txn)) { report('Enter a valid transaction reference.', true); return; }
+  if (!file || file.size > 3 * 1024 * 1024 || !['image/jpeg','image/png','image/webp'].includes(file.type)) { report('Choose a JPEG, PNG or WebP image under 3 MB.', true); return; }
+  const payload = new FormData(form);
+  payload.set('transactionid', txn);
+  busy = true;
+  submit.disabled = true;
+  submit.textContent = 'Submitting…';
+  report('Submitting registration…');
+  try {
+    const response = await fetch('/api/register/' + config.slug, {method:'POST', body:payload});
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.success) throw new Error(data.message || 'Registration failed. Please try again.');
+    done = true;
+    form.querySelectorAll('[data-step]').forEach(el => el.hidden = true);
+    report('Registration received. ID: ' + data.registrationId + '\nPayment verification pending.');
+  } catch (error) {
+    report(error.message, true);
+  } finally {
+    busy = false;
+    submit.disabled = done || !qrReady;
+    submit.textContent = done ? 'Submitted' : 'Submit Registration';
+  }
+});
+show(0);
+  </script>
+ </body>
+</html>

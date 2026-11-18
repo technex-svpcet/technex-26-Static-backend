@@ -1,0 +1,1 @@
+const test=require('node:test');const assert=require('node:assert/strict');const fs=require('fs');const path=require('path');test('required pages and original QR exist',()=>{for(const p of ['public/Registrataion/hackathon.html','public/Registrataion/apex-ctf.html','public/Landing pages/technex-payment.jpg'])assert.ok(fs.existsSync(path.join(__dirname,'..',p)));});
