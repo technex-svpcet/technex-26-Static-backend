@@ -29,7 +29,7 @@ const HEADERS = [
 // EVENT CONFIGURATION
 // ==========================================
 
-const EVENTS = {
+const EVENTS = Object.freeze({
   techquest: {
     tab: "TechQuest",
     min: 2,
@@ -73,7 +73,31 @@ const EVENTS = {
     }),
     feeType: "tiered",
   },
-};
+
+  vortex: {
+    tab: "Vortex",
+    min: 5,
+    max: 5,
+    fee: 500,
+    feeType: "perTeam",
+  },
+
+  designx: {
+    tab: "DesignXStudio",
+    min: 1,
+    max: 1,
+    fee: 200,
+    feeType: "perTeam",
+  },
+
+  gamerconquest: {
+    tab: "Gamer Conquest",
+    min: 1,
+    max: 4,
+    fee: 0,
+    feeType: "perTeam",
+  },
+});
 
 // ==========================================
 // VALIDATION HELPERS
@@ -87,7 +111,6 @@ const clean = (value, max = 120) =>
 const safe = (value) => {
   if (typeof value !== "string") return value;
 
-  // Prevent spreadsheet formula injection.
   return /^[=+@\-\t\r\n]/.test(value)
     ? "'" + value
     : value;
@@ -102,8 +125,6 @@ const normalize = (value) =>
 const validEmail = (value) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
-// Standard 10-digit Indian mobile number.
-// Starting digits 6, 7, 8, or 9 are permitted.
 const validPhone = (value) =>
   typeof value === "string" &&
   /^[6-9][0-9]{9}$/.test(value);
@@ -136,21 +157,10 @@ function calculateFee(cfg, size) {
 
   if (cfg.feeType === "tiered") {
     amount = cfg.fees?.[size];
-  } else if (
-    cfg.feeType === "perParticipant" ||
-    cfg.feeType === "perTeam"
-  ) {
-    if (
-      !Number.isSafeInteger(cfg.fee) ||
-      cfg.fee < 0
-    ) {
-      return null;
-    }
-
-    amount =
-      cfg.feeType === "perParticipant"
-        ? cfg.fee * size
-        : cfg.fee;
+  } else if (cfg.feeType === "perParticipant") {
+    amount = cfg.fee * size;
+  } else if (cfg.feeType === "perTeam") {
+    amount = cfg.fee;
   } else {
     return null;
   }
@@ -165,9 +175,7 @@ function calculateFee(cfg, size) {
 // ==========================================
 
 function validImage(buffer, mimeType) {
-  if (!Buffer.isBuffer(buffer)) {
-    return false;
-  }
+  if (!Buffer.isBuffer(buffer)) return false;
 
   if (mimeType === "image/jpeg") {
     return (
@@ -256,7 +264,7 @@ async function ensureTab(sheets, spreadsheetId, tab) {
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `'${tab}'!A1:P1`,
+    range: `'${tab}'!A1:O1`,
   });
 
   const existingHeaders = response.data.values?.[0] || [];
@@ -291,7 +299,6 @@ async function ensureTab(sheets, spreadsheetId, tab) {
 
 // ==========================================
 // REGISTRATION LOCK
-// Protects concurrent requests in one process.
 // ==========================================
 
 let registrationQueue = Promise.resolve();
@@ -316,7 +323,6 @@ async function withRegistrationLock(callback) {
 
 // ==========================================
 // GLOBAL TRANSACTION DUPLICATE CHECK
-// Checks all existing event sheets.
 // ==========================================
 
 async function isTransactionAlreadyUsed(
@@ -344,10 +350,7 @@ async function isTransactionAlreadyUsed(
   const normalizedTransaction = normalize(transactionId);
 
   for (const tab of eventTabs) {
-    // New event tabs may not exist yet.
-    if (!existingTabs.has(tab)) {
-      continue;
-    }
+    if (!existingTabs.has(tab)) continue;
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -361,9 +364,7 @@ async function isTransactionAlreadyUsed(
         normalize(row[0]) === normalizedTransaction
     );
 
-    if (duplicate) {
-      return true;
-    }
+    if (duplicate) return true;
   }
 
   return false;
@@ -375,7 +376,9 @@ async function isTransactionAlreadyUsed(
 
 async function register(req, res, next) {
   try {
-    const event = req.params.event;
+    const event = String(req.params.event || "")
+      .trim()
+      .toLowerCase();
 
     const cfg = Object.prototype.hasOwnProperty.call(
       EVENTS,
@@ -401,6 +404,12 @@ async function register(req, res, next) {
     const team = clean(body.teamName, 100);
     const txn = clean(body.transactionid, 100);
 
+    const isFree = event === "gamerconquest";
+    const gameMode = clean(
+      body.gameMode,
+      20
+    ).toUpperCase();
+
     // ======================================
     // TEAM SIZE VALIDATION
     // ======================================
@@ -416,6 +425,24 @@ async function register(req, res, next) {
       });
     }
 
+    // Gamer Conquest:
+    // BGMI = 4 players
+    // RC24 = 1 player
+
+    if (
+      isFree &&
+      !(
+        (gameMode === "BGMI" && size === 4) ||
+        (gameMode === "RC24" && size === 1)
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Choose BGMI with 4 players or RC24 with 1 player",
+      });
+    }
+
     if (team.length < 2) {
       return res.status(400).json({
         success: false,
@@ -427,7 +454,6 @@ async function register(req, res, next) {
     // SERVER-SIDE FEE CALCULATION
     // ======================================
 
-    // Never trust an amount submitted by the browser.
     const totalAmount = calculateFee(cfg, size);
 
     if (totalAmount === null) {
@@ -439,61 +465,64 @@ async function register(req, res, next) {
     }
 
     // ======================================
-    // TRANSACTION ID VALIDATION
+    // PAYMENT VALIDATION
     // ======================================
 
-    if (!validTransaction(txn)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Enter a valid UTR or transaction reference",
-      });
-    }
+    let extension = null;
 
-    // ======================================
-    // SCREENSHOT VALIDATION
-    // ======================================
+    // Gamer Conquest is free.
+    // No UTR or screenshot required.
 
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "Upload your payment screenshot",
-      });
-    }
+    if (!isFree) {
+      if (!validTransaction(txn)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Enter a valid UTR or transaction reference",
+        });
+      }
 
-    const extension =
-      ALLOWED_IMAGE_TYPES[req.file.mimetype];
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "Upload your payment screenshot",
+        });
+      }
 
-    if (!extension) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Only JPEG, PNG and WEBP screenshots are allowed",
-      });
-    }
+      extension =
+        ALLOWED_IMAGE_TYPES[req.file.mimetype];
 
-    if (
-      !Buffer.isBuffer(req.file.buffer) ||
-      !req.file.buffer.length ||
-      req.file.buffer.length > MAX_FILE_SIZE
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Screenshot must be a valid image under 5 MB",
-      });
-    }
+      if (!extension) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Only JPEG, PNG and WEBP screenshots are allowed",
+        });
+      }
 
-    if (
-      !validImage(
-        req.file.buffer,
-        req.file.mimetype
-      )
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid screenshot image",
-      });
+      if (
+        !Buffer.isBuffer(req.file.buffer) ||
+        !req.file.buffer.length ||
+        req.file.buffer.length > MAX_FILE_SIZE
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Screenshot must be a valid image under 5 MB",
+        });
+      }
+
+      if (
+        !validImage(
+          req.file.buffer,
+          req.file.mimetype
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid screenshot image",
+        });
+      }
     }
 
     // ======================================
@@ -532,10 +561,6 @@ async function register(req, res, next) {
           ? clean(body[`customCourse${i}`])
           : selectedCourse;
 
-      // ====================================
-      // INDIAN MOBILE NUMBER VALIDATION
-      // ====================================
-
       if (!validPhone(phone)) {
         return res.status(400).json({
           success: false,
@@ -543,10 +568,6 @@ async function register(req, res, next) {
             `Member ${i}: enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.`,
         });
       }
-
-      // ====================================
-      // OTHER PARTICIPANT VALIDATION
-      // ====================================
 
       if (
         name.length < 2 ||
@@ -558,11 +579,10 @@ async function register(req, res, next) {
       ) {
         return res.status(400).json({
           success: false,
-          message: `Check all details for member ${i}`,
+          message:
+            `Check all details for member ${i}`,
         });
       }
-
-      // Prevent repeated emails within a team.
 
       if (seenEmails.has(email)) {
         return res.status(400).json({
@@ -596,14 +616,19 @@ async function register(req, res, next) {
     } = getClients();
 
     if (!spreadsheetId) {
-      throw new Error("Missing GOOGLE_SPREADSHEET_ID");
+      throw new Error(
+        "Missing GOOGLE_SPREADSHEET_ID"
+      );
     }
 
     const folder =
       process.env.GOOGLE_DRIVE_FOLDER_ID?.trim();
 
-    if (!folder) {
-      throw new Error("Missing GOOGLE_DRIVE_FOLDER_ID");
+    // Free registration needs no screenshot.
+    if (!isFree && !folder) {
+      throw new Error(
+        "Missing GOOGLE_DRIVE_FOLDER_ID"
+      );
     }
 
     // ======================================
@@ -627,7 +652,6 @@ async function register(req, res, next) {
 
       // ====================================
       // DUPLICATE TEAM NAME CHECK
-      // Column G = index 6
       // ====================================
 
       const duplicateTeam = rows.some(
@@ -644,29 +668,28 @@ async function register(req, res, next) {
       }
 
       // ====================================
-      // GLOBAL DUPLICATE TRANSACTION CHECK
-      // Checks all five TECHNEX events.
+      // DUPLICATE TRANSACTION CHECK
       // ====================================
 
-      const duplicateTransaction =
-        await isTransactionAlreadyUsed(
-          sheets,
-          spreadsheetId,
-          txn
-        );
+      if (!isFree) {
+        const duplicateTransaction =
+          await isTransactionAlreadyUsed(
+            sheets,
+            spreadsheetId,
+            txn
+          );
 
-      if (duplicateTransaction) {
-        return res.status(409).json({
-          success: false,
-          message:
-            "This transaction ID has already been submitted for a TECHNEX event.",
-        });
+        if (duplicateTransaction) {
+          return res.status(409).json({
+            success: false,
+            message:
+              "This transaction ID has already been submitted for a TECHNEX event.",
+          });
+        }
       }
 
       // ====================================
       // BIZCON PARTICIPANT RESTRICTION
-      // One participant can join one team.
-      // Column I = index 8
       // ====================================
 
       if (event === "bizcon") {
@@ -691,77 +714,85 @@ async function register(req, res, next) {
       }
 
       // ====================================
-      // VERIFY GOOGLE DRIVE FOLDER
-      // ====================================
-
-      await assertUploadFolder(drive, folder);
-
-      // ====================================
       // GENERATE REGISTRATION ID
       // ====================================
 
       const registrationId = randomUUID();
       const timestamp = new Date().toISOString();
 
+      let screenshotLink = "";
+
       // ====================================
       // UPLOAD PAYMENT SCREENSHOT
       // ====================================
 
-      const driveResponse =
-        await drive.files.create({
-          supportsAllDrives: true,
+      if (!isFree) {
+        await assertUploadFolder(drive, folder);
 
-          requestBody: {
-            name:
-              `${event}-${registrationId}.${extension}`,
-            parents: [folder],
-          },
+        const driveResponse =
+          await drive.files.create({
+            supportsAllDrives: true,
 
-          media: {
-            mimeType: req.file.mimetype,
-            body: Readable.from(req.file.buffer),
-          },
+            requestBody: {
+              name:
+                `${event}-${registrationId}.${extension}`,
+              parents: [folder],
+            },
 
-          fields: "id,webViewLink",
-        });
+            media: {
+              mimeType: req.file.mimetype,
+              body: Readable.from(
+                req.file.buffer
+              ),
+            },
 
-      const screenshotId = driveResponse.data.id;
+            fields: "id,webViewLink",
+          });
 
-      if (!screenshotId) {
-        throw new Error(
-          "Payment screenshot upload failed"
-        );
+        const screenshotId =
+          driveResponse.data.id;
+
+        if (!screenshotId) {
+          throw new Error(
+            "Payment screenshot upload failed"
+          );
+        }
+
+        screenshotLink =
+          driveResponse.data.webViewLink ||
+          `https://drive.google.com/file/d/${screenshotId}/view`;
       }
-
-      // ====================================
-      // GOOGLE DRIVE SCREENSHOT LINK
-      // ====================================
-
-      const screenshotLink =
-        driveResponse.data.webViewLink ||
-        `https://drive.google.com/file/d/${screenshotId}/view`;
 
       // ====================================
       // PREPARE GOOGLE SHEETS ROWS
       // ====================================
 
-      const values = members.map((member, i) => [
-        timestamp,             // A - Timestamp
-        cfg.tab,               // B - Event
-        registrationId,        // C - Registration ID
-        size,                  // D - Team Size
-        i + 1,                 // E - Participant Count
-        totalAmount,           // F - Total Amount
-        safe(team),            // G - Team Name
-        safe(member.name),     // H - Name
-        safe(member.email),    // I - Emails
-        safe(member.phone),    // J - Phone no
-        safe(member.college),  // K - College
-        safe(member.branch),   // L - Branch
-        safe(member.year),     // M - YEAR
-        safe(txn),             // N - UTR-TRN no
-        screenshotLink,        // O - Screenshot link
-      ]);
+      // Preserve existing 15 columns.
+      // Save Gamer Conquest game in team name.
+
+      const sheetTeamName = isFree
+        ? `${team} (${gameMode})`
+        : team;
+
+      const values = members.map(
+        (member, i) => [
+          timestamp,
+          cfg.tab,
+          registrationId,
+          size,
+          i + 1,
+          totalAmount,
+          safe(sheetTeamName),
+          safe(member.name),
+          safe(member.email),
+          safe(member.phone),
+          safe(member.college),
+          safe(member.branch),
+          safe(member.year),
+          isFree ? "" : safe(txn),
+          screenshotLink,
+        ]
+      );
 
       // ====================================
       // SAVE TO GOOGLE SHEETS
@@ -783,8 +814,6 @@ async function register(req, res, next) {
           registrationId
         );
 
-        // Preserve uploaded evidence for
-        // authorized organizer review.
         throw error;
       }
 
@@ -799,11 +828,19 @@ async function register(req, res, next) {
         teamName: team,
         teamSize: size,
         participantCount: members.length,
+
+        ...(isFree ? { gameMode } : {}),
+
         feeType: cfg.feeType,
         totalAmount,
-        paymentStatus: "Pending Verification",
-        message:
-          "Registration and payment screenshot submitted successfully.",
+
+        paymentStatus: isFree
+          ? "Not Required"
+          : "Pending Verification",
+
+        message: isFree
+          ? "Free registration submitted successfully."
+          : "Registration and payment screenshot submitted successfully.",
       });
     });
   } catch (error) {
