@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 
 const express = require("express");
@@ -6,6 +7,7 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 
 const { registrationRouter } = require("./routes/formRoutes");
+const dynamicPaymentQrRouter = require("./routes/dynamicPaymentQr");
 
 const app = express();
 
@@ -51,6 +53,11 @@ const pub = path.join(__dirname, "..", "public");
 // ==========================================
 // ENABLED REGISTRATION EVENTS
 // ==========================================
+// Only events with existing HTML forms are enabled.
+//
+// Vortex and DesignX are intentionally disabled.
+// Enable them after adding their HTML files and
+// configuring their registration controllers.
 
 const ENABLED_EVENTS = new Set([
   "techquest",
@@ -71,6 +78,11 @@ const EVENT_ALIASES = new Map([
   ["coastal-clash", "coastalclash"],
   ["robo-sumo", "robosumo"],
   ["biz-con", "bizcon"],
+
+  // Reserved for future registration pages
+  ["design-x", "designx"],
+  ["designxstudio", "designx"],
+  ["vortex-valorant", "vortex"],
 ]);
 
 // ==========================================
@@ -94,6 +106,7 @@ const limiter = rateLimit({
   legacyHeaders: false,
 
   message: {
+    success: false,
     message:
       "Too many registration attempts. Try again after 15 minutes.",
   },
@@ -107,6 +120,25 @@ app.use(
   "/api/register",
   limiter,
   registrationRouter
+);
+
+// ==========================================
+// DYNAMIC EVENT PAYMENT QR
+// ==========================================
+// The dynamicPaymentQr router handles:
+// GET /api/payment-qr/:event?teamSize=2
+//
+// The eventPricing module must calculate the
+// official amount on the backend.
+//
+// Example:
+// /api/payment-qr/bizcon?teamSize=2
+// /api/payment-qr/bizcon?teamSize=3
+// /api/payment-qr/techquest?teamSize=4
+
+app.use(
+  "/api",
+  dynamicPaymentQrRouter
 );
 
 // ==========================================
@@ -141,7 +173,7 @@ app.get("/register/:event", (req, res) => {
 
   res.setHeader("Cache-Control", "no-store");
 
-  // Existing backend registration forms.
+  // Only serve enabled registration forms.
 
   if (ENABLED_EVENTS.has(event)) {
     return res.sendFile(
@@ -153,7 +185,8 @@ app.get("/register/:event", (req, res) => {
     );
   }
 
-  // All remaining events redirect to Unstop.
+  // Events without an enabled registration
+  // form continue to redirect to Unstop.
 
   return res.redirect(
     302,
@@ -162,24 +195,21 @@ app.get("/register/:event", (req, res) => {
 });
 
 // ==========================================
-// EVENT PAYMENT QR
+// OLD STATIC EVENT QR REMOVED
 // ==========================================
-
-app.get("/api/payment-qr", (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-
-  return res.sendFile(
-    path.join(
-      pub,
-      "Landing pages",
-      "technex-payment.jpg"
-    )
-  );
-});
+// The previous GET /api/payment-qr endpoint
+// has been removed.
+//
+// New endpoint:
+// GET /api/payment-qr/:event?teamSize=N
+//
+// Do not delete the old JPG until all existing
+// registration forms use the new endpoint.
 
 // ==========================================
 // WORKSHOP PAYMENT QR
 // ==========================================
+// This route remains unchanged.
 
 app.get("/api/workshop-payment-qr", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -242,7 +272,7 @@ app.use(
     // Prevent direct access to registration directory.
 
     if (
-      /^\/Registrataion(?:\/|$)/i.test(normalizedPath)
+      /^\/?Registrataion(?:\/|$)/i.test(normalizedPath)
     ) {
       return res.status(404).json({
         message: "Page not found.",
@@ -290,6 +320,7 @@ app.use((err, req, res, next) => {
       : 500;
 
   return res.status(status).json({
+    success: false,
     message:
       status < 500
         ? "Invalid request or requested resource unavailable."
@@ -330,6 +361,14 @@ if (require.main === module) {
     console.log("/register/bizcon");
 
     console.log("------------------------------------");
+    console.log(" Dynamic Payment QR");
+    console.log("------------------------------------");
+
+    console.log(
+      "/api/payment-qr/:event?teamSize=N"
+    );
+
+    console.log("------------------------------------");
 
     console.log(
       "Other events redirect to:",
@@ -337,7 +376,6 @@ if (require.main === module) {
     );
 
     console.log("Health Check: /health");
-    console.log("Payment QR: /api/payment-qr");
 
     console.log("====================================");
     console.log("");
