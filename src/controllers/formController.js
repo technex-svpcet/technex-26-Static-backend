@@ -97,6 +97,17 @@ const EVENTS = Object.freeze({
     fee: 0,
     feeType: "perTeam",
   },
+  envision: {
+  tab: "Envision",
+  min: 2,
+  max: 4,
+  fees: {
+    2: 350,
+    3: 400,
+    4: 450,
+  },
+  feeType: "tiered",
+},
 });
 
 // ==========================================

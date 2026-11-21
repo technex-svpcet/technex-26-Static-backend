@@ -14,6 +14,10 @@ const app = express();
 // ==========================================
 // RAILWAY PROXY CONFIGURATION
 // ==========================================
+// Railway normally forwards requests through a proxy.
+// Keep this setting aligned with your deployment.
+// For local development, avoid sending spoofed
+// X-Forwarded-For headers to Express.
 
 if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
@@ -51,61 +55,109 @@ app.use(
 const pub = path.join(__dirname, "..", "public");
 
 // ==========================================
-// ENABLED REGISTRATION EVENTS
+// WEBSITE REGISTRATION EVENTS
 // ==========================================
-// Comment an event to disable registration.
-// Uncomment it to enable registration.
+// These nine events use the existing TECHNEX
+// registration forms and backend.
+//
+// Do not add Unstop events here.
 
 const ENABLED_EVENTS = new Set([
   "techquest",
-
-  // "overdrive",
-  // "coastalclash",
-  // "robosumo",
-  // "bizcon",
-
+  "overdrive",
+  "coastalclash",
+  "robosumo",
+  "bizcon",
+  "envision",
   "vortex",
   "designx",
   "gamerconquest",
 ]);
 
 // ==========================================
+// UNSTOP REGISTRATION LINKS
+// ==========================================
+// Only these four events redirect to Unstop.
+//
+// To change an Unstop link later,
+// edit the corresponding URL below.
+
+const UNSTOP_EVENTS = Object.freeze({
+  hackathon:
+    "https://unstop.com/p/hackathon-st-vincent-pallotti-college-of-engineering-and-technology-svpcet-nagpur-1820868",
+
+  ctf:
+    "https://unstop.com/p/apex-ctf-st-vincent-pallotti-college-of-engineering-and-technology-svpcet-nagpur-1820854",
+
+  hackthehardware:
+    "https://unstop.com/p/hack-the-hardware-st-vincent-pallotti-college-of-engineering-and-technology-svpcet-nagpur-1820851",
+
+  agenticarena:
+    "https://unstop.com/p/agentic-arena-st-vincent-pallotti-college-of-engineering-and-technology-svpcet-nagpur-1820895",
+});
+
+// ==========================================
 // EVENT SLUG ALIASES
 // ==========================================
+// Only explicitly listed aliases are accepted.
+//
+// Incorrect event names will NOT be matched
+// automatically and will return 404.
 
 const EVENT_ALIASES = new Map([
+  // TechQuest
   ["tech-quest", "techquest"],
+  ["techquest-2k26", "techquest"],
+
+  // Overdrive
   ["overdrive-9", "overdrive"],
   ["overdrive-9-0", "overdrive"],
+
+  // Coastal Clash
   ["coastal-clash", "coastalclash"],
+
+  // Robo Sumo
   ["robo-sumo", "robosumo"],
+
+  // BizCon
   ["biz-con", "bizcon"],
 
+  // Envision
+  ["nvgen", "envision"],
+
+  // DesignXStudio
   ["design-x", "designx"],
   ["designxstudio", "designx"],
   ["design-x-studio", "designx"],
 
+  // Vortex
   ["vortex-valorant", "vortex"],
 
+  // Gamer Conquest
   ["gamer-conquest", "gamerconquest"],
   ["gamer-conquest-3-0", "gamerconquest"],
   ["gamerconquest-3", "gamerconquest"],
+
+  // Hackathon
+  ["hackathon-2026", "hackathon"],
+
+  // APEX CTF
+  ["apex-ctf", "ctf"],
+  ["apexctf", "ctf"],
+
+  // Hack the Hardware
+  ["hack-the-hardware", "hackthehardware"],
+  ["hack-the-hardware-2026", "hackthehardware"],
+
+  // Agentic Arena
+  ["agentic-arena", "agenticarena"],
+  ["agentic-ai", "agenticarena"],
+  ["agenticai", "agenticarena"],
 ]);
 
 // ==========================================
-// EVENT DISPLAY NAMES
+// EVENT SLUG RESOLVER
 // ==========================================
-
-const EVENT_NAMES = Object.freeze({
-  techquest: "TECHQUEST 2K26",
-  overdrive: "OVERDRIVE 9.0",
-  coastalclash: "COASTAL CLASH",
-  robosumo: "ROBO SUMO",
-  bizcon: "BIZCON 2026",
-  vortex: "VORTEX",
-  designx: "DESIGNXSTUDIO",
-  gamerconquest: "GAMER CONQUEST 3.0",
-});
 
 function resolveEvent(slug) {
   const normalized = String(slug || "")
@@ -115,291 +167,31 @@ function resolveEvent(slug) {
   return EVENT_ALIASES.get(normalized) || normalized;
 }
 
-// ==========================================
-// COMING SOON PAGE
-// ==========================================
+function isWebsiteEvent(event) {
+  return ENABLED_EVENTS.has(event);
+}
 
-function comingSoonPage(event) {
-  const eventName =
-    EVENT_NAMES[event] || "TECHNEX EVENT";
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
-  <meta
-    name="theme-color"
-    content="#080b15"
-  />
-  <title>${eventName} | Registration Opening Soon</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html {
-      min-height: 100%;
-      background: #080b15;
-    }
-
-    body {
-      min-height: 100vh;
-      min-height: 100dvh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      overflow-x: hidden;
-      font-family: Arial, Helvetica, sans-serif;
-      color: #ffffff;
-      background:
-        radial-gradient(
-          ellipse at 50% 20%,
-          rgba(202, 157, 69, 0.12),
-          transparent 50%
-        ),
-        radial-gradient(
-          ellipse at 90% 85%,
-          rgba(67, 91, 160, 0.10),
-          transparent 45%
-        ),
-        #080b15;
-    }
-
-    .glow {
-      position: fixed;
-      width: 380px;
-      height: 380px;
-      border-radius: 50%;
-      background: rgba(214, 169, 77, 0.08);
-      filter: blur(85px);
-      pointer-events: none;
-      animation: float 8s ease-in-out infinite;
-    }
-
-    .glow.one {
-      top: -160px;
-      left: -130px;
-    }
-
-    .glow.two {
-      right: -160px;
-      bottom: -170px;
-      animation-delay: -4s;
-    }
-
-    .card {
-      position: relative;
-      width: 100%;
-      max-width: 650px;
-      padding: 60px 38px;
-      text-align: center;
-      border: 1px solid rgba(216, 176, 99, 0.25);
-      border-radius: 22px;
-      background: rgba(13, 17, 30, 0.88);
-      box-shadow:
-        0 25px 80px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04);
-      animation: appear 0.7s ease both;
-    }
-
-    .eyebrow {
-      color: #d5ad65;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 5px;
-      text-transform: uppercase;
-    }
-
-    .line {
-      width: 65px;
-      height: 2px;
-      margin: 24px auto;
-      background: linear-gradient(
-        90deg,
-        transparent,
-        #d8ac61,
-        transparent
-      );
-    }
-
-    .event {
-      margin-bottom: 18px;
-      color: #f0d5a0;
-      font-size: clamp(14px, 3vw, 18px);
-      font-weight: 700;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-    }
-
-    h1 {
-      font-size: clamp(34px, 7vw, 56px);
-      line-height: 1.12;
-      font-weight: 800;
-      letter-spacing: -1.5px;
-    }
-
-    h1 span {
-      display: block;
-      margin-top: 7px;
-      color: #e6b96b;
-    }
-
-    .description {
-      max-width: 460px;
-      margin: 26px auto 0;
-      color: #aeb5c5;
-      font-size: 16px;
-      line-height: 1.8;
-    }
-
-    .status {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 30px;
-      padding: 12px 20px;
-      border: 1px solid rgba(216, 176, 99, 0.25);
-      border-radius: 30px;
-      color: #e9c58c;
-      background: rgba(216, 176, 99, 0.07);
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-    }
-
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #e6b96b;
-      box-shadow: 0 0 12px #e6b96b;
-      animation: pulse 2s infinite;
-    }
-
-    .footer {
-      margin-top: 38px;
-      color: #737d91;
-      font-size: 11px;
-      letter-spacing: 2px;
-    }
-
-    @keyframes pulse {
-      0%, 100% {
-        opacity: 1;
-        transform: scale(1);
-      }
-      50% {
-        opacity: 0.45;
-        transform: scale(0.8);
-      }
-    }
-
-    @keyframes float {
-      0%, 100% {
-        transform: translateY(0);
-      }
-      50% {
-        transform: translateY(30px);
-      }
-    }
-
-    @keyframes appear {
-      from {
-        opacity: 0;
-        transform: translateY(18px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @media (max-width: 600px) {
-      body {
-        padding: 16px;
-      }
-
-      .card {
-        padding: 48px 22px;
-        border-radius: 16px;
-      }
-
-      .eyebrow {
-        letter-spacing: 3px;
-      }
-
-      .description {
-        font-size: 14px;
-      }
-
-      .footer {
-        font-size: 10px;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *,
-      *::before,
-      *::after {
-        animation: none !important;
-      }
-    }
-  </style>
-</head>
-
-<body>
-  <div class="glow one"></div>
-  <div class="glow two"></div>
-
-  <main class="card">
-    <div class="eyebrow">TECHNEX 2026</div>
-
-    <div class="line"></div>
-
-    <div class="event">${eventName}</div>
-
-    <h1>
-      REGISTRATION
-      <span>OPENING SOON</span>
-    </h1>
-
-    <p class="description">
-      Registration for this event will be live soon.
-      We're getting everything ready for an incredible
-      experience. Stay tuned for updates!
-    </p>
-
-    <div class="status">
-      <span class="dot"></span>
-      Coming Soon
-    </div>
-
-    <div class="footer">
-      TECHNEX '26 &nbsp; | &nbsp; SVPCET NAGPUR
-    </div>
-  </main>
-</body>
-</html>`;
+function isUnstopEvent(event) {
+  return Object.prototype.hasOwnProperty.call(
+    UNSTOP_EVENTS,
+    event
+  );
 }
 
 // ==========================================
 // REGISTRATION RATE LIMITING
 // ==========================================
+// Preserve your existing rate limit.
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
+
   limit: 10,
+
   standardHeaders: "draft-7",
+
   legacyHeaders: false,
+
   message: {
     success: false,
     message:
@@ -408,26 +200,59 @@ const limiter = rateLimit({
 });
 
 // ==========================================
-// REGISTRATION API
+// REGISTRATION API SECURITY
 // ==========================================
-// Disabled events cannot submit registrations.
+// Only enabled website events can submit.
+//
+// The existing registration controller
+// expects a canonical event slug.
+//
+// We therefore reject aliases for POST,
+// instead of trying to modify req.params
+// across different Express routers.
 
-app.use("/api/register/:event", (req, res, next) => {
-  const event = resolveEvent(req.params.event);
+app.use("/api/register", (req, res, next) => {
+  const match = /^\/([a-z0-9-]+)\/?$/i.exec(
+    req.path
+  );
 
-  if (!ENABLED_EVENTS.has(event)) {
-    return res.status(403).json({
+  if (!match) {
+    return res.status(404).json({
       success: false,
-      message:
-        "Registration for this event is not open yet.",
+      message: "Registration endpoint not found.",
     });
   }
 
-  // Normalize aliases for the controller.
-  req.params.event = event;
+  const submittedEvent = match[1].toLowerCase();
+  const resolvedEvent = resolveEvent(submittedEvent);
+
+  if (!isWebsiteEvent(resolvedEvent)) {
+    return res.status(404).json({
+      success: false,
+      message: "Registration endpoint not found.",
+    });
+  }
+
+  // Require the canonical slug for API requests.
+  // Example:
+  // /api/register/envision    -> allowed
+  // /api/register/nvgen      -> 404
+  //
+  // Registration page aliases still work.
+
+  if (submittedEvent !== resolvedEvent) {
+    return res.status(404).json({
+      success: false,
+      message: "Registration endpoint not found.",
+    });
+  }
 
   next();
 });
+
+// ==========================================
+// REGISTRATION API
+// ==========================================
 
 app.use(
   "/api/register",
@@ -438,6 +263,30 @@ app.use(
 // ==========================================
 // DYNAMIC EVENT PAYMENT QR
 // ==========================================
+// Preserve the existing QR router.
+//
+// Restrict only event payment QR requests.
+// Other API routes provided by the router
+// remain unaffected.
+
+app.use("/api/payment-qr/:event", (req, res, next) => {
+  const submittedEvent = String(req.params.event)
+    .toLowerCase();
+
+  const resolvedEvent = resolveEvent(submittedEvent);
+
+  if (
+    !isWebsiteEvent(resolvedEvent) ||
+    submittedEvent !== resolvedEvent
+  ) {
+    return res.status(404).json({
+      success: false,
+      message: "Payment QR endpoint not found.",
+    });
+  }
+
+  next();
+});
 
 app.use("/api", dynamicPaymentQrRouter);
 
@@ -457,7 +306,7 @@ app.get("/health", (req, res) => {
 // ==========================================
 
 app.get("/", (req, res) => {
-  return res.redirect("/register/techquest");
+  return res.redirect(302, "/register/techquest");
 });
 
 // ==========================================
@@ -469,28 +318,49 @@ app.get("/register/:event", (req, res) => {
 
   res.setHeader("Cache-Control", "no-store");
 
-  // Serve active registration forms.
-  if (ENABLED_EVENTS.has(event)) {
-    return res.sendFile(
-      path.join(
-        pub,
-        "Registrataion",
-        `${event}.html`
-      )
+  // ----------------------------------------
+  // 1. UNSTOP EVENTS
+  // ----------------------------------------
+  // Redirect to the specific Unstop event.
+
+  if (isUnstopEvent(event)) {
+    return res.redirect(
+      302,
+      UNSTOP_EVENTS[event]
     );
   }
 
-  // Show coming-soon page instead of Unstop.
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  // ----------------------------------------
+  // 2. WEBSITE REGISTRATION EVENTS
+  // ----------------------------------------
+  // Keep the same HTML registration pages.
 
-  return res.status(200).send(
-    comingSoonPage(event)
-  );
+  if (isWebsiteEvent(event)) {
+    const registrationFile = path.join(
+      pub,
+      "Registrataion",
+      `${event}.html`
+    );
+
+    return res.sendFile(registrationFile);
+  }
+
+  // ----------------------------------------
+  // 3. INVALID EVENT URL
+  // ----------------------------------------
+  // No coming-soon page.
+  // No Unstop fallback.
+  // No automatic event-name guessing.
+
+  return res.status(404).json({
+    message: "Page not found.",
+  });
 });
 
 // ==========================================
 // WORKSHOP PAYMENT QR
 // ==========================================
+// Preserve your existing workshop QR route.
 
 app.get("/api/workshop-payment-qr", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -523,6 +393,8 @@ app.get("/registration-success", (req, res) => {
 // ==========================================
 // STATIC ASSETS SECURITY
 // ==========================================
+// Preserve existing asset access while
+// blocking direct HTML access.
 
 app.use(
   "/assets",
@@ -600,6 +472,7 @@ app.use((err, req, res, next) => {
 
   return res.status(status).json({
     success: false,
+
     message:
       status < 500
         ? "Invalid request or requested resource unavailable."
@@ -633,7 +506,7 @@ if (require.main === module) {
       console.log("Server started successfully.");
 
       console.log("------------------------------------");
-      console.log(" Enabled Registration Events");
+      console.log(" Website Registration Events");
       console.log("------------------------------------");
 
       for (const event of ENABLED_EVENTS) {
@@ -641,13 +514,13 @@ if (require.main === module) {
       }
 
       console.log("------------------------------------");
-      console.log(" Registration Opening Soon");
+      console.log(" Unstop Registration Redirects");
       console.log("------------------------------------");
 
-      for (const event of Object.keys(EVENT_NAMES)) {
-        if (!ENABLED_EVENTS.has(event)) {
-          console.log(`/register/${event}`);
-        }
+      for (const event of Object.keys(UNSTOP_EVENTS)) {
+        console.log(
+          `/register/${event} -> ${UNSTOP_EVENTS[event]}`
+        );
       }
 
       console.log("------------------------------------");
@@ -673,6 +546,10 @@ if (require.main === module) {
 
     process.exit(1);
   });
+
+  // ========================================
+  // GRACEFUL SHUTDOWN
+  // ========================================
 
   function shutdown(signal) {
     console.log(

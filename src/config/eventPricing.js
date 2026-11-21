@@ -53,6 +53,16 @@ const EVENTS = Object.freeze({
     fee: 500,
     type: "perTeam",
   },
+  envision: {
+  min: 2,
+  max: 4,
+  fees: {
+    2: 350,
+    3: 400,
+    4: 450,
+  },
+  type: "tiered",
+},
 });
 
 function getPrice(event, teamSize, challenge) {
