@@ -28,12 +28,12 @@ header::after{content:"";position:absolute;width:340px;height:340px;right:-120px
 h1{font-size:clamp(40px,8vw,84px);line-height:1.02;margin:16px 0 14px;font-weight:800;letter-spacing:-2.5px;background:linear-gradient(100deg,#fff 0%,var(--cream) 35%,var(--gold) 75%,var(--gold-2) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
 .sub{color:#E3E8F0;font-size:clamp(15px,2vw,18px);font-weight:500}
 .stats{display:flex;gap:14px;flex-wrap:wrap;margin:30px 0 0}.stats span{flex:1;min-width:185px;border:1px solid var(--line);border-radius:16px;padding:15px 18px;background:rgba(255,255,255,.06);color:var(--muted);font-size:13px;letter-spacing:.3px}.stats strong{display:inline-block;margin-top:2px;color:var(--gold);font-family:"Sora",sans-serif;font-size:19px;font-weight:700}
-.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:26px 0}.steps span{min-width:0;padding:14px 10px;text-align:center;border:1px solid var(--line);border-radius:14px;background:var(--glass);color:var(--muted);font-size:12.5px;letter-spacing:.8px;font-weight:600;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background .25s,border-color .25s,transform .25s,box-shadow .25s,color .25s}.steps span.active{color:#fff;border-color:transparent;background:linear-gradient(110deg,var(--gold),var(--gold-2));box-shadow:0 8px 28px rgba(37,99,235,.35);transform:translateY(-2px);font-weight:800}
+.steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:26px 0}.steps span{min-width:0;padding:14px 10px;text-align:center;border:1px solid var(--line);border-radius:14px;background:var(--glass);color:var(--muted);font-size:12.5px;letter-spacing:.8px;font-weight:600;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background .25s,border-color .25s,transform .25s,box-shadow .25s,color .25s}.steps span.active{color:#fff;border-color:transparent;background:linear-gradient(110deg,var(--gold),var(--gold-2));box-shadow:0 8px 28px rgba(37,99,235,.35);transform:translateY(-2px);font-weight:800}
 .panel,.member{border:1px solid var(--line);border-radius:24px;background:linear-gradient(145deg,var(--glass-2),rgba(8,9,12,.88));box-shadow:0 26px 70px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.10);backdrop-filter:blur(18px) saturate(130%);-webkit-backdrop-filter:blur(18px) saturate(130%);padding:clamp(22px,4vw,42px);margin:16px 0}
 .member{padding:22px;border-radius:18px;background:rgba(255,255,255,.045);border-color:rgba(79,140,255,.22);box-shadow:none}
 h2,h3{margin:0 0 22px;color:var(--cream);line-height:1.2;font-weight:700}h2{font-size:clamp(24px,3.2vw,32px);letter-spacing:-.5px;display:flex;align-items:center;gap:12px}h2::before{content:"";width:5px;height:1.05em;border-radius:4px;background:linear-gradient(180deg,var(--aqua),var(--gold))}h3{font-size:17px;color:var(--aqua)}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}label{display:block;font-size:13px;font-weight:600;letter-spacing:.2px;color:#EEF2F8}
-input,select{display:block;width:100%;margin-top:8px;min-height:52px;padding:13px 15px;background:rgba(255,255,255,.07);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:13px;font:inherit;font-size:15px;transition:border-color .2s,box-shadow .2s,background .2s}input::placeholder{color:rgba(255,255,255,.38)}input:hover,select:hover{border-color:rgba(79,140,255,.55);background-color:rgba(255,255,255,.09)}input:focus,select:focus{outline:0;border-color:var(--gold);background-color:rgba(255,255,255,.10);box-shadow:0 0 0 4px rgba(79,140,255,.20)}input[type=file]{font-size:13px;padding:11px 13px}input[type=file]::file-selector-button{margin-right:12px;border:0;border-radius:9px;padding:8px 14px;background:linear-gradient(110deg,var(--gold),var(--gold-2));color:#fff;font-weight:700;cursor:pointer}option{background:#10131A;color:#F4F8F6}
+input,select,textarea{display:block;width:100%;margin-top:8px;min-height:52px;padding:13px 15px;background:rgba(255,255,255,.07);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:13px;font:inherit;font-size:15px;transition:border-color .2s,box-shadow .2s,background .2s}input::placeholder{color:rgba(255,255,255,.38)}input:hover,select:hover{border-color:rgba(79,140,255,.55);background-color:rgba(255,255,255,.09)}input:focus,select:focus{outline:0;border-color:var(--gold);background-color:rgba(255,255,255,.10);box-shadow:0 0 0 4px rgba(79,140,255,.20)}input[type=file]{font-size:13px;padding:11px 13px}input[type=file]::file-selector-button{margin-right:12px;border:0;border-radius:9px;padding:8px 14px;background:linear-gradient(110deg,var(--gold),var(--gold-2));color:#fff;font-weight:700;cursor:pointer}option{background:#10131A;color:#F4F8F6}
 button{border:0;background:linear-gradient(115deg,#78B6FF,var(--gold) 40%,var(--gold-2) 85%,var(--amber-deep));color:#fff;font:inherit;font-family:"Sora",sans-serif;font-weight:700;font-size:14.5px;letter-spacing:.3px;padding:13px 30px;min-height:50px;border-radius:13px;cursor:pointer;box-shadow:0 10px 28px rgba(37,99,235,.32),inset 0 1px rgba(255,255,255,.45);transition:transform .2s,box-shadow .2s,filter .2s}button:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.07);box-shadow:0 16px 36px rgba(37,99,235,.45),inset 0 1px rgba(255,255,255,.5)}button:active:not(:disabled){transform:translateY(0)}button:focus-visible{outline:2px solid var(--aqua);outline-offset:3px}button:disabled{opacity:.5;cursor:not-allowed;filter:grayscale(.3)}
 button.secondary{background:rgba(255,255,255,.07);color:var(--cream);border:1px solid rgba(255,255,255,.26);box-shadow:none}button.secondary:hover:not(:disabled){background:rgba(79,140,255,.14);border-color:var(--gold);box-shadow:0 8px 24px rgba(37,99,235,.16)}
 .actions{display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap;margin:26px 0 0}
@@ -73,7 +73,7 @@ select {
   transition: none;
 }
 select::-ms-expand { display: none; }
-</style>
+textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--glass-2);color:var(--text);font:inherit;resize:vertical} @media(max-width:650px){.steps{grid-template-columns:repeat(3,minmax(0,1fr))}}</style>
  </head>
  <body>
   <main>
@@ -115,10 +115,10 @@ select::-ms-expand { display: none; }
      02 / Members
     </span>
     <span>
-     03 / Review
+     03 / Idea Details</span><span>04 / Review
     </span>
     <span>
-     04 / Payment
+     05 / Payment
     </span>
    </nav>
    <form id="form" method="post" novalidate="">
@@ -167,11 +167,12 @@ select::-ms-expand { display: none; }
        Back
       </button>
       <button data-next="" type="button">
-       Review details
+       Continue to idea details
       </button>
      </div>
     </section>
-    <section class="panel" data-step="2" hidden="">
+    <section class="panel" data-step="2" hidden><h2>Additional Registration Information</h2><p>For every idea, product, solution or business. Fields marked * are mandatory.</p><div class="grid"><label>Idea / product / business name *<input name="ideaName" required type="text" maxlength="300"></label><label>Briefly describe your idea, product, service or solution *<textarea name="ideaDescription" required maxlength="3000" rows="4"></textarea></label><label>What problem or need does your idea address? *<textarea name="problemStatement" required maxlength="3000" rows="4"></textarea></label><label>Who would benefit from your solution? *<input name="targetAudience" required type="text" maxlength="300"></label><label>Industry / Domain *<select name="industry" required><option value="">Select an option</option><option>Technology / IT</option><option>Healthcare</option><option>Education</option><option>FinTech</option><option>Agriculture</option><option>E-commerce / Retail</option><option>Sustainability / Environment</option><option>Food &amp; Beverage</option><option>Manufacturing</option><option>Social Innovation</option><option>Other</option></select></label><label>Proposed solution and how it works *<textarea name="proposedSolution" required maxlength="3000" rows="4"></textarea></label><label>What makes your idea different or valuable (USP)? *<textarea name="usp" required maxlength="3000" rows="4"></textarea></label><label>Competitors or existing alternatives (optional)<textarea name="competitors" maxlength="3000" rows="4"></textarea></label><label>How could your idea create value or generate revenue? (optional)<textarea name="revenueModel" maxlength="3000" rows="4"></textarea></label><label>Current stage *<select name="currentStage" required><option value="">Select an option</option><option>Concept / Idea Stage</option><option>Researching the Problem</option><option>Solution Designed</option><option>Prototype in Development</option><option>Prototype / Demo Ready</option><option>Testing / Validation</option><option>Launched / In Use</option><option>Operating Business</option></select></label><label>Testing / Feedback (optional)<select name="testingStatus"><option value="">Select an option</option><option>Not tested yet</option><option>Discussed with potential users</option><option>Received feedback</option><option>Prototype tested</option><option>Pilot / trial conducted</option><option>Other</option></select></label><label>Optional testing or feedback details (optional)<textarea name="feedbackDetails" maxlength="3000" rows="4"></textarea></label><label>Customers / Users (optional)<select name="customerStatus"><option value="">Select an option</option><option>No users or customers yet</option><option>People testing the idea</option><option>Have active users</option><option>Have paying customers</option><option>Not applicable at this stage</option></select></label><label>Biggest challenge *<textarea name="biggestChallenge" required maxlength="3000" rows="4"></textarea></label><label>What support are you looking for from BIZCON? *<select name="expectedSupport" required><option value="">Select an option</option><option>Mentorship</option><option>Investor Interaction</option><option>Funding Opportunities</option><option>Incubation Support</option><option>Partnerships</option><option>Customer / User Connections</option><option>Market Exposure</option><option>Networking</option><option>Feedback on Idea</option><option>Other</option></select></label><label>Interested in presenting at Investor’s Arena? *<select name="investorInterest" required><option value="">Select an option</option><option>Yes</option><option>No</option><option>Maybe</option></select></label><label>Approximate funding requirement (if applicable) (optional)<input name="fundingRequirement" type="text" maxlength="300"></label><label>Introduction video link (optional)<input name="introVideoUrl" type="url" maxlength="1000"></label><label>Website / product link / portfolio (optional)<input name="websiteUrl" type="url" maxlength="1000"></label><label>Business / legal structure (if applicable) (optional)<select name="legalStructure"><option value="">Select an option</option><option>Private Limited Company</option><option>LLP</option><option>Partnership Firm</option><option>Sole Proprietorship</option><option>Other Registered Entity</option><option>Not Registered / Idea Stage</option></select></label><label>Product demonstration video link (optional)<input name="demoVideoUrl" type="url" maxlength="1000"></label><label>Pitch Deck Google Drive URL *<input type="url" name="pitchDeckUrl" maxlength="1000" placeholder="https://drive.google.com/..." required></label><label>Logo / Product Image Google Drive URL (optional)<input type="url" name="productImageUrl" maxlength="1000" placeholder="https://drive.google.com/..."></label></div><div class="panel" style="margin-top:20px;padding:18px"><h3>Instructions for sharing documents</h3><ol><li>Create one Google Drive folder named BIZCON - Your Team Name.</li><li>Upload your pitch deck (PDF/PPT/PPTX, recommended maximum 10 MB), logo or product image (recommended maximum 3 MB), and any supporting videos or documents into this folder.</li><li>Share only the event materials with the organizers as Viewer, or use Anyone with the link - Viewer for materials you are comfortable sharing. Do not include personal or confidential documents.</li><li>Copy the Drive links and paste them into the corresponding fields above. You may use the same folder link for both fields if it contains both files. Ensure the organizers can open the links before submitting.</li></ol></div><div class="actions"><button class="secondary" data-back type="button">Back</button><button data-next type="button">Review details</button></div></section>
+<section class="panel" data-step="3" hidden="">
      <h2>
       Review Registration
      </h2>
@@ -204,7 +205,7 @@ select::-ms-expand { display: none; }
       </button>
      </div>
     </section>
-    <section class="panel" data-step="3" hidden="">
+    <section class="panel" data-step="4" hidden="">
      <h2>
       Payment Details
      </h2>
@@ -287,8 +288,8 @@ function show(n) {
   });
   report('');
   updateAmount();
-  if (n === 3) loadPayment();
-  if (n === 2) {
+  if (n === 4) loadPayment();
+  if (n === 3) {
     document.querySelector('#summary').textContent = form.elements.teamName.value.trim() + ' · ' + size.value + ' participant(s)';
     document.querySelector('#reviewMembers').textContent = Array.from({length:Number(size.value)}, (_,i) => (i+1) + '. ' + form.elements['name'+(i+1)].value.trim()).join('\n');
   }
@@ -333,13 +334,13 @@ function displayValidationErrors(errors) {
   report('Please correct the highlighted fields.', true);
 }
 form.addEventListener('input', e => {
-  if (e.target.matches('input,select')) {
+  if (e.target.matches('input,select,textarea')) {
     clearFieldError(e.target);
     validationSummary.hidden = true;
   }
 });
 form.addEventListener('change', e => {
-  if (e.target.matches('input,select')) {
+  if (e.target.matches('input,select,textarea')) {
     clearFieldError(e.target);
     validationSummary.hidden = true;
   }
@@ -372,14 +373,23 @@ function validate(n){
   const section=document.querySelector(`[data-step="${n}"]`);
   const errors=[]; let firstInvalid=null;
   validationSummary.hidden=true;
-  for(const el of section.querySelectorAll('input,select')){
+  for(const el of section.querySelectorAll('input,select,textarea')){
     if(el.disabled || el.closest('[hidden]')) continue;
-    if(el.type==='text' || el.type==='email' || el.type==='tel') el.value=el.value.trim();
+    if(el.tagName==='TEXTAREA' || el.type==='url' || el.type==='text' || el.type==='email' || el.type==='tel') el.value=el.value.trim();
     clearFieldError(el);
     if(!el.checkValidity()){
       const message=explainInvalid(el);
       setFieldError(el,message); errors.push(message);
       if(!firstInvalid) firstInvalid=el;
+    }
+  }
+  if(n===2){
+    for(const key of ['pitchDeckUrl','productImageUrl']){
+      const el=form.elements[key];
+      if(!el.value) continue;
+      let valid=false;
+      try {const u=new URL(el.value); valid=u.protocol==='https:' && u.hostname==='drive.google.com' && !u.username && !u.password && !u.port && (/^\/(?:drive\/(?:u\/\d+\/)?folders|file\/d)\/[\w-]+(?:\/|$)/.test(u.pathname) || (u.pathname==='/open' && /^[\w-]+$/.test(u.searchParams.get('id')||'')));} catch {}
+      if(!valid){const message=fieldLabel(el)+': Enter a valid Google Drive file or folder link.';setFieldError(el,message);errors.push(message);if(!firstInvalid)firstInvalid=el;}
     }
   }
   if(n===1){
@@ -438,11 +448,11 @@ function loadPayment() {
 }
 form.addEventListener('submit', async e => {
   e.preventDefault();
-  if (done || busy || step !== 3 || !qrReady || selectedFee() === null) return;
-  for (let n = 0; n < 3; n++) {
+  if (done || busy || step !== 4 || !qrReady || selectedFee() === null) return;
+  for (let n = 0; n < 4; n++) {
     if (!validate(n)) { show(n); validate(n); return; }
   }
-  if (!validate(3)) return;
+  if (!validate(4)) return;
   const txn = form.elements.transactionid.value.trim();
   const file = form.elements.paymentScreenshot.files[0];
   if (!/^[a-zA-Z0-9_/-]{6,100}$/.test(txn)) { report('Enter a valid transaction reference.', true); return; }

@@ -1,11 +1,6 @@
-
 const { randomUUID } = require("crypto");
 const { Readable } = require("stream");
 const { getClients } = require("../config/main.config");
-
-// ==========================================
-// GOOGLE SHEETS HEADERS
-// ==========================================
 
 const HEADERS = [
   "Timestamp",
@@ -25,9 +20,111 @@ const HEADERS = [
   "Screenshot link",
 ];
 
-// ==========================================
-// EVENT CONFIGURATION
-// ==========================================
+const BIZ_FIELDS = [
+  ["ideaName", "Idea / product / business name", "text", true],
+  ["ideaDescription", "Briefly describe your idea, product, service or solution", "textarea", true],
+  ["problemStatement", "What problem or need does your idea address?", "textarea", true],
+  ["targetAudience", "Who would benefit from your solution?", "text", true],
+  ["industry", "Industry / Domain", [
+    "Technology / IT",
+    "Healthcare",
+    "Education",
+    "FinTech",
+    "Agriculture",
+    "E-commerce / Retail",
+    "Sustainability / Environment",
+    "Food & Beverage",
+    "Manufacturing",
+    "Social Innovation",
+    "Other",
+  ], true],
+  ["proposedSolution", "Proposed solution and how it works", "textarea", true],
+  ["usp", "What makes your idea different or valuable (USP)?", "textarea", true],
+  ["competitors", "Competitors or existing alternatives", "textarea", false],
+  ["revenueModel", "How could your idea create value or generate revenue?", "textarea", false],
+  ["currentStage", "Current stage", [
+    "Concept / Idea Stage",
+    "Researching the Problem",
+    "Solution Designed",
+    "Prototype in Development",
+    "Prototype / Demo Ready",
+    "Testing / Validation",
+    "Launched / In Use",
+    "Operating Business",
+  ], true],
+  ["testingStatus", "Testing / Feedback", [
+    "Not tested yet",
+    "Discussed with potential users",
+    "Received feedback",
+    "Prototype tested",
+    "Pilot / trial conducted",
+    "Other",
+  ], false],
+  ["feedbackDetails", "Optional testing or feedback details", "textarea", false],
+  ["customerStatus", "Customers / Users", [
+    "No users or customers yet",
+    "People testing the idea",
+    "Have active users",
+    "Have paying customers",
+    "Not applicable at this stage",
+  ], false],
+  ["biggestChallenge", "Biggest challenge", "textarea", true],
+  ["expectedSupport", "What support are you looking for from BIZCON?", [
+    "Mentorship",
+    "Investor Interaction",
+    "Funding Opportunities",
+    "Incubation Support",
+    "Partnerships",
+    "Customer / User Connections",
+    "Market Exposure",
+    "Networking",
+    "Feedback on Idea",
+    "Other",
+  ], true],
+  ["investorInterest", "Interested in presenting at Investor’s Arena?", [
+    "Yes",
+    "No",
+    "Maybe",
+  ], true],
+  ["fundingRequirement", "Approximate funding requirement (if applicable)", "text", false],
+  ["introVideoUrl", "Introduction video link", "url", false],
+  ["websiteUrl", "Website / product link / portfolio", "url", false],
+  ["legalStructure", "Business / legal structure (if applicable)", [
+    "Private Limited Company",
+    "LLP",
+    "Partnership Firm",
+    "Sole Proprietorship",
+    "Other Registered Entity",
+    "Not Registered / Idea Stage",
+  ], false],
+  ["demoVideoUrl", "Product demonstration video link", "url", false],
+];
+
+const BIZ_HEADERS = BIZ_FIELDS.map(
+  (field) => field[1]
+).concat([
+  "Pitch Deck URL",
+  "Product Image URL",
+]);
+
+const BIZ_TAB = "BizCon Business Details";
+
+const BIZ_BUSINESS_HEADERS = [
+  "Timestamp",
+  "Event",
+  "Registration ID",
+  "Team Size",
+  "Participant Count",
+  "Team Name",
+  "Name",
+  "Emails",
+  "Phone no",
+  "College",
+  "Branch",
+  "YEAR",
+  "Course",
+  ...BIZ_HEADERS,
+];
 
 const EVENTS = Object.freeze({
   techquest: {
@@ -97,22 +194,24 @@ const EVENTS = Object.freeze({
     fee: 0,
     feeType: "perTeam",
   },
+
   envision: {
-  tab: "Envision",
-  min: 2,
-  max: 4,
-  fees: {
-    2: 350,
-    3: 400,
-    4: 450,
+    tab: "Envision",
+    min: 2,
+    max: 4,
+    fees: {
+      2: 350,
+      3: 400,
+      4: 450,
+    },
+    feeType: "tiered",
   },
-  feeType: "tiered",
-},
 });
 
-// ==========================================
-// VALIDATION HELPERS
-// ==========================================
+const bizconCache = new Map();
+const bizconFolderCache = new Map();
+
+const BIZCON_CACHE_MS = 60000;
 
 const clean = (value, max = 120) =>
   typeof value === "string"
@@ -151,10 +250,6 @@ const ALLOWED_IMAGE_TYPES = {
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-// ==========================================
-// SERVER-SIDE FEE CALCULATION
-// ==========================================
-
 function calculateFee(cfg, size) {
   if (
     !Number.isInteger(size) ||
@@ -180,10 +275,6 @@ function calculateFee(cfg, size) {
     ? amount
     : null;
 }
-
-// ==========================================
-// VALIDATE IMAGE CONTENT
-// ==========================================
 
 function validImage(buffer, mimeType) {
   if (!Buffer.isBuffer(buffer)) return false;
@@ -219,9 +310,48 @@ function validImage(buffer, mimeType) {
   return false;
 }
 
-// ==========================================
-// VERIFY GOOGLE DRIVE FOLDER
-// ==========================================
+function validUrl(value) {
+  try {
+    const url = new URL(value);
+
+    return ["https:", "http:"].includes(
+      url.protocol
+    );
+  } catch {
+    return false;
+  }
+}
+
+function validDriveUrl(value) {
+  try {
+    const url = new URL(value);
+
+    if (
+      value.length > 1000 ||
+      url.protocol !== "https:" ||
+      url.hostname !== "drive.google.com" ||
+      url.username ||
+      url.password ||
+      url.port
+    ) {
+      return false;
+    }
+
+    return (
+      /^\/(?:drive\/(?:u\/\d+\/)?folders|file\/d)\/[\w-]+(?:\/|$)/.test(
+        url.pathname
+      ) ||
+      (
+        url.pathname === "/open" &&
+        /^[\w-]+$/.test(
+          url.searchParams.get("id") || ""
+        )
+      )
+    );
+  } catch {
+    return false;
+  }
+}
 
 async function assertUploadFolder(drive, folder) {
   const response = await drive.files.get({
@@ -241,10 +371,6 @@ async function assertUploadFolder(drive, folder) {
     );
   }
 }
-
-// ==========================================
-// CREATE OR VALIDATE GOOGLE SHEETS TAB
-// ==========================================
 
 async function ensureTab(sheets, spreadsheetId, tab) {
   const metadata = await sheets.spreadsheets.get({
@@ -278,7 +404,8 @@ async function ensureTab(sheets, spreadsheetId, tab) {
     range: `'${tab}'!A1:O1`,
   });
 
-  const existingHeaders = response.data.values?.[0] || [];
+  const existingHeaders =
+    response.data.values?.[0] || [];
 
   if (!existingHeaders.length) {
     await sheets.spreadsheets.values.update({
@@ -308,9 +435,131 @@ async function ensureTab(sheets, spreadsheetId, tab) {
   }
 }
 
-// ==========================================
-// REGISTRATION LOCK
-// ==========================================
+async function ensureBizconTabs(
+  sheets,
+  spreadsheetId,
+  paymentTab
+) {
+  const cached = bizconCache.get(spreadsheetId);
+
+  if (cached && cached.expires > Date.now()) {
+    return cached.ids;
+  }
+
+  await ensureTab(
+    sheets,
+    spreadsheetId,
+    paymentTab
+  );
+
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields:
+      "sheets.properties(sheetId,title,gridProperties(columnCount))",
+  });
+
+  const allSheets = metadata.data.sheets || [];
+
+  const payment = allSheets.find(
+    (sheet) => sheet.properties.title === paymentTab
+  )?.properties;
+
+  let business = allSheets.find(
+    (sheet) => sheet.properties.title === BIZ_TAB
+  )?.properties;
+
+  if (!payment) {
+    throw new Error("BizCon payment sheet not found");
+  }
+
+  if (!business) {
+    const created = await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: BIZ_TAB,
+                gridProperties: {
+                  rowCount: 1000,
+                  columnCount: BIZ_BUSINESS_HEADERS.length,
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    business =
+      created.data.replies[0].addSheet.properties;
+  }
+
+  const currentColumns =
+    business.gridProperties.columnCount;
+
+  if (currentColumns < BIZ_BUSINESS_HEADERS.length) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            appendDimension: {
+              sheetId: business.sheetId,
+              dimension: "COLUMNS",
+              length:
+                BIZ_BUSINESS_HEADERS.length -
+                currentColumns,
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  const headerResponse =
+    await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${BIZ_TAB}'!1:1`,
+    });
+
+  const existingHeaders =
+    headerResponse.data.values?.[0] || [];
+
+  if (
+    existingHeaders.length &&
+    JSON.stringify(existingHeaders) !==
+      JSON.stringify(BIZ_BUSINESS_HEADERS)
+  ) {
+    throw new Error(
+      "BizCon Business Details has incompatible headers"
+    );
+  }
+
+  if (!existingHeaders.length) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${BIZ_TAB}'!A1`,
+      valueInputOption: "RAW",
+      requestBody: {
+        values: [BIZ_BUSINESS_HEADERS],
+      },
+    });
+  }
+
+  const ids = {
+    payment: payment.sheetId,
+    business: business.sheetId,
+  };
+
+  bizconCache.set(spreadsheetId, {
+    ids,
+    expires: Date.now() + BIZCON_CACHE_MS,
+  });
+
+  return ids;
+}
 
 let registrationQueue = Promise.resolve();
 
@@ -331,10 +580,6 @@ async function withRegistrationLock(callback) {
     release();
   }
 }
-
-// ==========================================
-// GLOBAL TRANSACTION DUPLICATE CHECK
-// ==========================================
 
 async function isTransactionAlreadyUsed(
   sheets,
@@ -358,15 +603,17 @@ async function isTransactionAlreadyUsed(
     ),
   ];
 
-  const normalizedTransaction = normalize(transactionId);
+  const normalizedTransaction =
+    normalize(transactionId);
 
   for (const tab of eventTabs) {
     if (!existingTabs.has(tab)) continue;
 
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `'${tab}'!N2:N`,
-    });
+    const response =
+      await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `'${tab}'!N2:N`,
+      });
 
     const transactions = response.data.values || [];
 
@@ -381,9 +628,66 @@ async function isTransactionAlreadyUsed(
   return false;
 }
 
-// ==========================================
-// MAIN REGISTRATION CONTROLLER
-// ==========================================
+async function bizconTransactionsUsed(
+  sheets,
+  spreadsheetId,
+  transactionId
+) {
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: "sheets.properties.title",
+  });
+
+  const existingTabs = new Set(
+    (metadata.data.sheets || []).map(
+      (sheet) => sheet.properties.title
+    )
+  );
+
+  const ranges = [
+    ...new Set(
+      Object.values(EVENTS).map((cfg) => cfg.tab)
+    ),
+  ]
+    .filter((tab) => existingTabs.has(tab))
+    .map((tab) => `'${tab}'!N2:N`);
+
+  if (!ranges.length) return false;
+
+  const response =
+    await sheets.spreadsheets.values.batchGet({
+      spreadsheetId,
+      ranges,
+    });
+
+  const normalizedTransaction =
+    normalize(transactionId);
+
+  return (response.data.valueRanges || []).some(
+    (range) =>
+      (range.values || []).some(
+        (row) =>
+          normalize(row[0]) === normalizedTransaction
+      )
+  );
+}
+
+function appendCells(sheetId, rows) {
+  return {
+    appendCells: {
+      sheetId,
+      rows: rows.map((row) => ({
+        values: row.map((value) => ({
+          userEnteredValue:
+            typeof value === "number"
+              ? { numberValue: value }
+              : { stringValue: String(value ?? "") },
+        })),
+      })),
+      fields: "userEnteredValue",
+    },
+  };
+}
 
 async function register(req, res, next) {
   try {
@@ -398,10 +702,6 @@ async function register(req, res, next) {
       ? EVENTS[event]
       : null;
 
-    // ======================================
-    // EVENT VALIDATION
-    // ======================================
-
     if (!cfg) {
       return res.status(404).json({
         success: false,
@@ -411,34 +711,104 @@ async function register(req, res, next) {
 
     const body = req.body || {};
 
+    const bad = (message) =>
+      res.status(400).json({
+        success: false,
+        message,
+      });
+
+    const bizAnswers = [];
+
+    if (event === "bizcon") {
+      for (
+        const [key, label, type, required]
+        of BIZ_FIELDS
+      ) {
+        const value =
+          typeof body[key] === "string"
+            ? body[key].trim()
+            : "";
+
+        const max =
+          type === "textarea"
+            ? 3000
+            : type === "url"
+              ? 1000
+              : 300;
+
+        if (
+          (required && !value) ||
+          value.length > max ||
+          (
+            value &&
+            Array.isArray(type) &&
+            !type.includes(value)
+          )
+        ) {
+          return bad("Check: " + label);
+        }
+
+        if (
+          value &&
+          type === "url" &&
+          !validUrl(value)
+        ) {
+          return bad("Invalid link: " + label);
+        }
+
+        bizAnswers.push(safe(value));
+      }
+
+      for (const [key, required] of [
+        ["pitchDeckUrl", true],
+        ["productImageUrl", false],
+      ]) {
+        const value =
+          typeof body[key] === "string"
+            ? body[key].trim()
+            : "";
+
+        if (!value && !required) {
+          bizAnswers.push("");
+          continue;
+        }
+
+        if (!validDriveUrl(value)) {
+          return bad(
+            "Enter a valid Google Drive link for " + key
+          );
+        }
+
+        bizAnswers.push(safe(value));
+      }
+
+      if (req.file?.size > 3 * 1024 * 1024) {
+        return bad(
+          "Payment screenshot must be under 3 MB."
+        );
+      }
+    }
+
     const size = Number(body.teamSize);
     const team = clean(body.teamName, 100);
     const txn = clean(body.transactionid, 100);
 
     const isFree = event === "gamerconquest";
+
     const gameMode = clean(
       body.gameMode,
       20
     ).toUpperCase();
-
-    // ======================================
-    // TEAM SIZE VALIDATION
-    // ======================================
 
     if (
       !Number.isInteger(size) ||
       size < cfg.min ||
       size > cfg.max
     ) {
-      return res.status(400).json({
-        success: false,
-        message: `Team size must be ${cfg.min}-${cfg.max}`,
-      });
+      return bad(
+        `Team size must be ${cfg.min}-${cfg.max}`
+      );
     }
-
-    // Gamer Conquest:
-    // BGMI = 4 players
-    // RC24 = 1 player
 
     if (
       isFree &&
@@ -447,23 +817,14 @@ async function register(req, res, next) {
         (gameMode === "RC24" && size === 1)
       )
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Choose BGMI with 4 players or RC24 with 1 player",
-      });
+      return bad(
+        "Choose BGMI with 4 players or RC24 with 1 player"
+      );
     }
 
     if (team.length < 2) {
-      return res.status(400).json({
-        success: false,
-        message: "Enter a valid team name",
-      });
+      return bad("Enter a valid team name");
     }
-
-    // ======================================
-    // SERVER-SIDE FEE CALCULATION
-    // ======================================
 
     const totalAmount = calculateFee(cfg, size);
 
@@ -475,40 +836,26 @@ async function register(req, res, next) {
       });
     }
 
-    // ======================================
-    // PAYMENT VALIDATION
-    // ======================================
-
     let extension = null;
-
-    // Gamer Conquest is free.
-    // No UTR or screenshot required.
 
     if (!isFree) {
       if (!validTransaction(txn)) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Enter a valid UTR or transaction reference",
-        });
+        return bad(
+          "Enter a valid UTR or transaction reference"
+        );
       }
 
       if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          message: "Upload your payment screenshot",
-        });
+        return bad("Upload your payment screenshot");
       }
 
       extension =
         ALLOWED_IMAGE_TYPES[req.file.mimetype];
 
       if (!extension) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Only JPEG, PNG and WEBP screenshots are allowed",
-        });
+        return bad(
+          "Only JPEG, PNG and WEBP screenshots are allowed"
+        );
       }
 
       if (
@@ -516,11 +863,9 @@ async function register(req, res, next) {
         !req.file.buffer.length ||
         req.file.buffer.length > MAX_FILE_SIZE
       ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Screenshot must be a valid image under 5 MB",
-        });
+        return bad(
+          "Screenshot must be a valid image under 5 MB"
+        );
       }
 
       if (
@@ -529,16 +874,9 @@ async function register(req, res, next) {
           req.file.mimetype
         )
       ) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid screenshot image",
-        });
+        return bad("Invalid screenshot image");
       }
     }
-
-    // ======================================
-    // PARTICIPANT VALIDATION
-    // ======================================
 
     const members = [];
     const seenEmails = new Set();
@@ -573,11 +911,9 @@ async function register(req, res, next) {
           : selectedCourse;
 
       if (!validPhone(phone)) {
-        return res.status(400).json({
-          success: false,
-          message:
-            `Member ${i}: enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.`,
-        });
+        return bad(
+          `Member ${i}: enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.`
+        );
       }
 
       if (
@@ -588,19 +924,15 @@ async function register(req, res, next) {
         !college ||
         !course
       ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            `Check all details for member ${i}`,
-        });
+        return bad(
+          `Check all details for member ${i}`
+        );
       }
 
       if (seenEmails.has(email)) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Team members must have different email addresses",
-        });
+        return bad(
+          "Team members must have different email addresses"
+        );
       }
 
       seenEmails.add(email);
@@ -615,10 +947,6 @@ async function register(req, res, next) {
         course,
       });
     }
-
-    // ======================================
-    // GOOGLE API CLIENTS
-    // ======================================
 
     const {
       sheets,
@@ -635,23 +963,28 @@ async function register(req, res, next) {
     const folder =
       process.env.GOOGLE_DRIVE_FOLDER_ID?.trim();
 
-    // Free registration needs no screenshot.
     if (!isFree && !folder) {
       throw new Error(
         "Missing GOOGLE_DRIVE_FOLDER_ID"
       );
     }
 
-    // ======================================
-    // REGISTRATION AND UPLOAD
-    // ======================================
-
     return await withRegistrationLock(async () => {
-      await ensureTab(
-        sheets,
-        spreadsheetId,
-        cfg.tab
-      );
+      let bizSheetIds;
+
+      if (event === "bizcon") {
+        bizSheetIds = await ensureBizconTabs(
+          sheets,
+          spreadsheetId,
+          cfg.tab
+        );
+      } else {
+        await ensureTab(
+          sheets,
+          spreadsheetId,
+          cfg.tab
+        );
+      }
 
       const previous =
         await sheets.spreadsheets.values.get({
@@ -660,10 +993,6 @@ async function register(req, res, next) {
         });
 
       const rows = previous.data.values || [];
-
-      // ====================================
-      // DUPLICATE TEAM NAME CHECK
-      // ====================================
 
       const duplicateTeam = rows.some(
         (row) =>
@@ -678,13 +1007,13 @@ async function register(req, res, next) {
         });
       }
 
-      // ====================================
-      // DUPLICATE TRANSACTION CHECK
-      // ====================================
-
       if (!isFree) {
         const duplicateTransaction =
-          await isTransactionAlreadyUsed(
+          await (
+            event === "bizcon"
+              ? bizconTransactionsUsed
+              : isTransactionAlreadyUsed
+          )(
             sheets,
             spreadsheetId,
             txn
@@ -698,10 +1027,6 @@ async function register(req, res, next) {
           });
         }
       }
-
-      // ====================================
-      // BIZCON PARTICIPANT RESTRICTION
-      // ====================================
 
       if (event === "bizcon") {
         const registeredEmails = new Set(
@@ -724,21 +1049,28 @@ async function register(req, res, next) {
         }
       }
 
-      // ====================================
-      // GENERATE REGISTRATION ID
-      // ====================================
-
       const registrationId = randomUUID();
       const timestamp = new Date().toISOString();
 
       let screenshotLink = "";
 
-      // ====================================
-      // UPLOAD PAYMENT SCREENSHOT
-      // ====================================
-
       if (!isFree) {
-        await assertUploadFolder(drive, folder);
+        const cachedFolder =
+          bizconFolderCache.get(folder) || 0;
+
+        if (
+          event !== "bizcon" ||
+          cachedFolder <= Date.now()
+        ) {
+          await assertUploadFolder(drive, folder);
+
+          if (event === "bizcon") {
+            bizconFolderCache.set(
+              folder,
+              Date.now() + BIZCON_CACHE_MS
+            );
+          }
+        }
 
         const driveResponse =
           await drive.files.create({
@@ -774,13 +1106,6 @@ async function register(req, res, next) {
           `https://drive.google.com/file/d/${screenshotId}/view`;
       }
 
-      // ====================================
-      // PREPARE GOOGLE SHEETS ROWS
-      // ====================================
-
-      // Preserve existing 15 columns.
-      // Save Gamer Conquest game in team name.
-
       const sheetTeamName = isFree
         ? `${team} (${gameMode})`
         : team;
@@ -805,21 +1130,67 @@ async function register(req, res, next) {
         ]
       );
 
-      // ====================================
-      // SAVE TO GOOGLE SHEETS
-      // ====================================
-
       try {
-        await sheets.spreadsheets.values.append({
-          spreadsheetId,
-          range: `'${cfg.tab}'!A:O`,
-          valueInputOption: "RAW",
-          insertDataOption: "INSERT_ROWS",
-          requestBody: {
-            values,
-          },
-        });
+        if (event === "bizcon") {
+          const businessValues = members.map(
+            (member, i) => [
+              timestamp,
+              cfg.tab,
+              registrationId,
+              size,
+              i + 1,
+              safe(team),
+              safe(member.name),
+              safe(member.email),
+              safe(member.phone),
+              safe(member.college),
+              safe(member.branch),
+              safe(member.year),
+              safe(member.course),
+
+              ...(
+                i === 0
+                  ? bizAnswers
+                  : BIZ_HEADERS.map(() => "")
+              ),
+            ]
+          );
+
+          await sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+
+            requestBody: {
+              requests: [
+                appendCells(
+                  bizSheetIds.payment,
+                  values
+                ),
+
+                appendCells(
+                  bizSheetIds.business,
+                  businessValues
+                ),
+              ],
+            },
+          });
+        } else {
+          await sheets.spreadsheets.values.append({
+            spreadsheetId,
+            range: `'${cfg.tab}'!A:O`,
+            valueInputOption: "RAW",
+            insertDataOption: "INSERT_ROWS",
+
+            requestBody: {
+              values,
+            },
+          });
+        }
       } catch (error) {
+        if (event === "bizcon") {
+          bizconCache.delete(spreadsheetId);
+          bizconFolderCache.delete(folder);
+        }
+
         console.error(
           "Sheets append failed for registration:",
           registrationId
@@ -827,10 +1198,6 @@ async function register(req, res, next) {
 
         throw error;
       }
-
-      // ====================================
-      // SUCCESS RESPONSE
-      // ====================================
 
       return res.status(201).json({
         success: true,
